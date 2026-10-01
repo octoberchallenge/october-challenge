@@ -472,87 +472,147 @@ function wrapText(x,text,cx,y,maxW,lh){
   }
   x.fillText(line,cx,yy); return yy+lh;
 }
+/* ---------- gold-foil story card art helpers ---------- */
+function ssSpaced(x,txt,cx,y,ls){
+  const chars=[...txt];
+  const widths=chars.map(ch=>x.measureText(ch).width);
+  const total=widths.reduce((a,b)=>a+b,0)+ls*(chars.length-1);
+  let pen=cx-total/2;
+  const prev=x.textAlign; x.textAlign='left';
+  chars.forEach((ch,i)=>{ x.fillText(ch,pen,y); pen+=widths[i]+ls; });
+  x.textAlign=prev;
+}
+function ssBubble(x,cx,cy,r,num,fill,F){
+  x.save();
+  x.beginPath(); x.arc(cx,cy,r,0,7);
+  if(fill>=1){
+    const g=x.createRadialGradient(cx-r*0.35,cy-r*0.4,r*0.1,cx,cy,r*1.05);
+    g.addColorStop(0,'#ffe082'); g.addColorStop(0.55,'#eab308'); g.addColorStop(1,'#c78d0e');
+    x.fillStyle=g;
+    x.shadowColor='rgba(234,179,8,.5)'; x.shadowBlur=16;
+    x.fill(); x.shadowBlur=0;
+  } else if(fill>0){
+    x.save(); x.clip();
+    const g=x.createLinearGradient(0,cy-r,0,cy+r);
+    g.addColorStop(0,'#ffe082'); g.addColorStop(1,'#cf9a12');
+    x.fillStyle=g;
+    const h=2*r*fill;
+    x.fillRect(cx-r,cy+r-h,2*r,h);
+    x.restore();
+  }
+  x.lineWidth=Math.max(2.5,r*0.13); x.strokeStyle='#c9a227'; x.stroke();
+  x.fillStyle=fill>0.45?'#ffffff':'#c9a227';
+  x.font='800 '+Math.round(r*0.62)+'px '+F;
+  x.textAlign='center'; x.textBaseline='middle';
+  x.fillText(String(num),cx,cy+2);
+  x.restore();
+}
+function ssGrain(x,n){
+  x.save();
+  for(let i=0;i<n;i++){
+    x.fillStyle='rgba(255,255,255,'+(Math.random()*0.05).toFixed(3)+')';
+    x.fillRect(Math.random()*1080,Math.random()*1920,1.6,1.6);
+  }
+  x.restore();
+}
+function ssVignette(x,a){
+  const g=x.createRadialGradient(540,960,1920*0.32,540,960,1920*0.72);
+  g.addColorStop(0,'rgba(0,0,0,0)');
+  g.addColorStop(1,'rgba(0,0,0,'+a+')');
+  x.fillStyle=g; x.fillRect(0,0,1080,1920);
+}
 // Build a 1080x1920 story image of current progress and hand it to the phone's share sheet
 function shareStory(){
   const p=activeProfile(); if(!p){ toast('Add a tracker in Settings first'); return; }
   const g=activeGoal();
   const t=allocatedFor(p.id,g), pct=Math.min(100,Math.round(t/g*100));
-  // Styled like the printed challenge card: teal-to-green background,
-  // big gradient title, name pill, cream bubble grid (gold = miles done)
+  // Gold foil champion theme: deep evergreen, gold-foil title, cream bubble card
   const W=1080,H=1920, c=document.createElement('canvas'); c.width=W; c.height=H;
   const x=c.getContext('2d');
   if(!x || !c.toBlob){ toast('Sharing is not supported in this browser'); return; }
-  const GOLD='#c9a227', GOLDFILL='#d4a017', CREAM='#f8f4e9';
-  const bg=x.createLinearGradient(0,0,0,H);
-  bg.addColorStop(0,'#7ba7bd'); bg.addColorStop(0.55,'#7fae9f'); bg.addColorStop(1,'#8fbf62');
-  x.fillStyle=bg; x.fillRect(0,0,W,H);
-  x.textAlign='center'; x.textBaseline='alphabetic';
-  // soft gold glow behind the title
-  const glow=x.createRadialGradient(W/2,260,60,W/2,260,540);
-  glow.addColorStop(0,'rgba(255,220,130,.30)'); glow.addColorStop(1,'rgba(255,220,130,0)');
-  x.fillStyle=glow; x.fillRect(0,0,W,720);
-  // title with auto-fit so it never overflows the canvas
-  const titleLine=(txt,y,size,c1,c2)=>{
-    let s=size;
-    const mk=()=>'italic 800 '+s+'px system-ui,-apple-system,sans-serif';
-    x.font=mk();
-    while(x.measureText(txt).width>W-90 && s>28){ s-=4; x.font=mk(); }
-    x.lineWidth=Math.max(6,Math.round(s/14)); x.lineJoin='round';
-    x.strokeStyle='#ffffff'; x.strokeText(txt,W/2,y);
-    const gr=x.createLinearGradient(0,y-s,0,y);
-    gr.addColorStop(0,c1); gr.addColorStop(1,c2);
-    x.fillStyle=gr; x.fillText(txt,W/2,y);
-  };
-  titleLine(g+'-MILE',215,150,'#63a8d4','#2f6da3');
-  titleLine('OCTOBER CHALLENGE',335,102,'#a5d86e','#4f9e42');
-  x.fillStyle='#ffffff'; x.font='600 34px system-ui,-apple-system,sans-serif';
-  x.fillText('RUN | WALK | HIKE | CYCLE | SWIM | ROW',W/2,405);
-  x.fillText(g+' MILES THROUGH THE MONTH OF OCTOBER',W/2,450);
-  x.fillStyle='#fff6da'; x.font='800 40px system-ui,-apple-system,sans-serif';
-  x.fillText(p.name.toUpperCase()+'  ·  '+fmt(t)+' / '+g+' MI  ·  '+pct+'%',W/2,512);
+  const F='system-ui,-apple-system,sans-serif';
   const st=streakFor(p.id);
-  x.fillStyle='#ffd98a'; x.font='800 38px system-ui,-apple-system,sans-serif';
-  x.fillText(st>0?('🔥 '+st+' DAY STREAK'):'EVERY MILE COUNTS!',W/2,562);
-  // name pill
-  x.fillStyle='rgba(255,255,255,.93)'; rr(x,60,600,W-120,78,39); x.fill();
-  x.fillStyle='#5a5a5a'; x.font='700 38px system-ui,-apple-system,sans-serif'; x.textAlign='left';
-  x.fillText('NAME:  '+p.name.toUpperCase(),112,651);
-  x.textAlign='center';
-  // bubble grid panel
+  x.textAlign='center'; x.textBaseline='alphabetic';
+  // deep evergreen background + diagonal sheen
+  const bg=x.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#0e2f25'); bg.addColorStop(0.5,'#134233'); bg.addColorStop(1,'#081b15');
+  x.fillStyle=bg; x.fillRect(0,0,W,H);
+  const sheen=x.createLinearGradient(0,0,W,H);
+  sheen.addColorStop(0.42,'rgba(255,255,255,0)');
+  sheen.addColorStop(0.5,'rgba(255,255,255,.05)');
+  sheen.addColorStop(0.58,'rgba(255,255,255,0)');
+  x.fillStyle=sheen; x.fillRect(0,0,W,H);
+  // certificate frame
+  x.lineWidth=3; x.strokeStyle='#c9a227';
+  rr(x,36,36,1008,1848,34); x.stroke();
+  x.lineWidth=1; x.strokeStyle='rgba(201,162,39,.55)';
+  rr(x,54,54,972,1812,26); x.stroke();
+  [[90,90],[990,90],[90,1830],[990,1830]].forEach(([cx,cy])=>{
+    x.save(); x.translate(cx,cy); x.rotate(Math.PI/4);
+    x.fillStyle='#c9a227'; x.fillRect(-9,-9,18,18); x.restore();
+  });
+  // eyebrow
+  x.fillStyle='#e9d8a6'; x.font='600 37px '+F;
+  ssSpaced(x,'✦  OCTOBER CHALLENGE  ✦',W/2,208,10);
+  // gold-foil hero with auto-fit so it never overflows
+  let hs=198;
+  const hero=g+'-MILE';
+  const hfont=()=>'italic 900 '+hs+'px '+F;
+  x.font=hfont();
+  while(x.measureText(hero).width>920 && hs>80){ hs-=6; x.font=hfont(); }
+  x.save();
+  x.shadowColor='rgba(0,0,0,.55)'; x.shadowBlur=24; x.shadowOffsetY=8;
+  const fg=x.createLinearGradient(0,240,0,440);
+  fg.addColorStop(0,'#f9e79a'); fg.addColorStop(0.48,'#c9992b');
+  fg.addColorStop(0.55,'#a87e1c'); fg.addColorStop(1,'#f3d47a');
+  x.fillStyle=fg;
+  x.fillText(hero,W/2,408);
+  x.restore();
+  // divider
+  x.strokeStyle='rgba(201,162,39,.8)'; x.lineWidth=2;
+  x.beginPath(); x.moveTo(300,462); x.lineTo(500,462); x.moveTo(580,462); x.lineTo(780,462); x.stroke();
+  x.save(); x.translate(W/2,462); x.rotate(Math.PI/4);
+  x.fillStyle='#c9a227'; x.fillRect(-11,-11,22,22); x.restore();
+  x.fillStyle='rgba(233,216,166,.85)'; x.font='600 31px '+F;
+  ssSpaced(x,g+' MILES · ONE MONTH · FINISH STRONG',W/2,522,5);
+  // stat trio
+  const stats=[[fmt(t),'MILES'],[pct+'%','COMPLETE'],[st>0?('🔥'+st):'—','STREAK']];
+  stats.forEach(([val,lab],i)=>{
+    const cx=300+i*240;
+    x.fillStyle='#f5e9c8'; x.font='800 62px '+F;
+    x.fillText(val,cx,648);
+    x.fillStyle='#c9a227'; x.font='600 26px '+F;
+    ssSpaced(x,lab,cx,692,6);
+  });
+  x.strokeStyle='rgba(201,162,39,.35)'; x.lineWidth=1.5;
+  [420,660].forEach(px=>{ x.beginPath(); x.moveTo(px,590); x.lineTo(px,700); x.stroke(); });
+  x.fillStyle='rgba(233,216,166,.6)'; x.font='600 27px '+F;
+  ssSpaced(x,'RUN · WALK · HIKE · CYCLE · SWIM · ROW',W/2,748,4);
+  // cream bubble panel, sized to the goal
   const cols=7, rows=Math.ceil(g/cols);
-  const rh=Math.min(116,950/rows);
-  const ptop=716, gridTop=ptop+48, gridH=rh*rows;
-  const lastCount=g%cols===0?cols:g%cols, inline=cols-lastCount>=3;
-  const pbot=gridTop+gridH+(inline?48:96);
-  x.fillStyle=CREAM; rr(x,60,ptop,W-120,pbot-ptop,40); x.fill();
-  const cw=(W-120)/cols, R=Math.max(16,Math.min(52,cw/2-16,rh/2-12));
-  const whole=Math.floor(t), frac=t-whole;
-  x.font='700 '+Math.round(R*0.92)+'px system-ui,-apple-system,sans-serif';
+  const availTop=796, availBot=1780;
+  const cellH=Math.min(122,(availBot-availTop-122)/rows);
+  const R=Math.min(44,cellH*0.36);
+  const cellW=888/cols;
+  const panelH=66+rows*cellH+56;
+  const panelTop=availTop+Math.max(0,(availBot-availTop-panelH)/2);
+  x.save();
+  rr(x,96,panelTop,888,panelH,44);
+  x.fillStyle='#faf5e8';
+  x.shadowColor='rgba(0,0,0,.5)'; x.shadowBlur=44; x.shadowOffsetY=16;
+  x.fill(); x.restore();
+  x.fillStyle='#8a6d1c'; x.font='800 30px '+F;
+  ssSpaced(x,p.name.toUpperCase()+' — ONE BUBBLE = ONE MILE',W/2,panelTop+44,6);
+  const gridTop=panelTop+96;
   for(let i=1;i<=g;i++){
-    const r=Math.floor((i-1)/cols), col=(i-1)%cols;
-    const cx=60+cw*(col+0.5), cy=gridTop+rh*(r+0.5);
-    const done=i<=whole, part=!done&&i===whole+1&&frac>0.009;
-    if(done||part){
-      x.save(); x.beginPath(); x.arc(cx,cy,R,0,7); x.clip();
-      x.fillStyle=GOLDFILL;
-      if(done) x.fillRect(cx-R,cy-R,R*2,R*2);
-      else x.fillRect(cx-R,cy+R-(R*2*frac),R*2,R*2*frac);
-      x.restore();
-    }
-    x.lineWidth=4; x.strokeStyle=GOLD;
-    x.beginPath(); x.arc(cx,cy,R,0,7); x.stroke();
-    x.fillStyle=(done||part)?'#ffffff':GOLD;
-    x.fillText(String(i),cx,cy+R*0.34);
+    const r0=Math.floor((i-1)/cols), col=(i-1)%cols;
+    const cx=96+cellW*(col+0.5), cy=gridTop+r0*cellH;
+    ssBubble(x,cx,cy,R,i,Math.max(0,Math.min(1,t-(i-1))),F);
   }
-  x.fillStyle='#6b5f2a'; x.font='700 32px system-ui,-apple-system,sans-serif';
-  if(inline){
-    const cyL=gridTop+rh*(rows-1+0.5);
-    x.fillText('ONE BUBBLE = ONE MILE',60+cw*(lastCount+(cols-lastCount)/2),cyL+11);
-  } else {
-    x.fillText('ONE BUBBLE = ONE MILE',W/2,gridTop+gridH+58);
-  }
-  x.fillStyle='rgba(255,255,255,.85)'; x.font='600 32px system-ui,-apple-system,sans-serif';
-  x.fillText('OCT 1–31 · 2026',W/2,H-64);
+  x.fillStyle='#c9a227'; x.font='600 30px '+F;
+  ssSpaced(x,st>0?'EVERY MILE COUNTS · KEEP GOING':'EVERY MILE COUNTS!',W/2,1832,6);
+  ssGrain(x,2000); ssVignette(x,0.22);
+
   c.toBlob(blob=>{
     if(!blob){ toast('Could not create image'); return; }
     const file=new File([blob],'october-challenge.png',{type:'image/png'});

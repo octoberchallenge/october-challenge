@@ -65,24 +65,13 @@
   .coach-line:first-child{margin-top:0;} .coach-line:last-child{margin-bottom:0;}
   .coach-big{font-size:15px; font-weight:800;}
   .coach-ok{color:#2f7a3a;} .coach-warn{color:#b3272e;} .coach-mid{color:#8a6d00;}
-  /* slim verse strip with mascot */
-  .verse-strip{display:flex; align-items:center; gap:12px; margin-top:10px; padding:10px 8px 10px 14px;
+  /* slim verse strip */
+  .verse-strip{margin-top:10px; padding:10px 14px;
     background:linear-gradient(135deg,#fdf6e3,#fbeed1); border:1px solid #ecd9a8; border-radius:14px;}
-  .verse-strip .vs-text{flex:1; min-width:0;}
   .verse-strip .vtext{font-size:13.5px; line-height:1.5; font-style:italic; color:#4a3c14;
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
   .verse-strip .vmeta{font-size:11.5px; color:#8a6d1a; margin-top:3px; font-weight:700;}
   .verse-strip .vmeta .vtimer{color:var(--muted); font-weight:400;}
-  .verse-strip .mascot{position:static; flex:none; font-size:44px; margin-right:2px;
-    animation:bobS .9s ease-in-out infinite; filter:drop-shadow(0 4px 3px rgba(0,0,0,.18));}
-  @keyframes bobS{0%,100%{transform:translateY(0) rotate(-5deg);}50%{transform:translateY(-7px) rotate(5deg);}}
-  .verse-strip .mascot.m-run{animation:bobS .45s ease-in-out infinite;}
-  .verse-strip .mascot.m-cycle{animation:bobS .6s ease-in-out infinite;}
-  .verse-strip .mascot.m-hike{animation:bobS 1.1s ease-in-out infinite;}
-  .verse-strip .mascot.m-swim{animation:swayS 1.7s ease-in-out infinite;}
-  @keyframes swayS{0%,100%{transform:translateX(-3px) rotate(-10deg);}50%{transform:translateX(3px) rotate(10deg);}}
-  .verse-strip .mascot.m-row{animation:rowmS 1.3s ease-in-out infinite;}
-  @keyframes rowmS{0%,100%{transform:translateY(0) rotate(-12deg);}50%{transform:translateY(-4px) rotate(12deg);}}
   /* bubbles */
   .bubbles{display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-top:6px;}
   .bub{aspect-ratio:1; border-radius:50%; border:2px solid #d8b93c; color:#b8932a; background:#fffdf4;
@@ -104,16 +93,10 @@
   .switch .sl:before{content:''; position:absolute; width:20px; height:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.25);}
   .switch input:checked + .sl{background:var(--green);}
   .switch input:checked + .sl:before{transform:translateX(20px);}
-  .mascot{font-size:46px; position:absolute; left:50%; top:2px; transform:translateX(-50%);
-    animation:bob .9s ease-in-out infinite; filter:drop-shadow(0 4px 3px rgba(0,0,0,.18));}
-  @keyframes bob{0%,100%{transform:translateX(-50%) translateY(0) rotate(-5deg);}50%{transform:translateX(-50%) translateY(-9px) rotate(5deg);}}
-  .mascot.m-run{animation-duration:.45s;}
-  .mascot.m-cycle{animation-duration:.6s;}
-  .mascot.m-hike{animation-duration:1.1s;}
-  .mascot.m-swim{animation:sway 1.7s ease-in-out infinite;}
-  @keyframes sway{0%,100%{transform:translateX(-60%) rotate(-10deg);}50%{transform:translateX(-40%) rotate(10deg);}}
-  .mascot.m-row{animation:rowm 1.3s ease-in-out infinite;}
-  @keyframes rowm{0%,100%{transform:translateX(-50%) translateY(0) rotate(-12deg);}50%{transform:translateX(-50%) translateY(-5px) rotate(12deg);}}
+  /* activity chip icon tap animation */
+  .chip .aicon{display:inline-block;}
+  .chip .aicon.pop{animation:chipPop .55s ease;}
+  @keyframes chipPop{0%{transform:scale(1) rotate(0);}35%{transform:scale(1.5) rotate(-14deg);}70%{transform:scale(.92) rotate(8deg);}100%{transform:scale(1) rotate(0);}}
   .complete-badge{background:linear-gradient(135deg,var(--gold),#f0c94a); color:#5c430a; font-weight:800;
     text-align:center; border-radius:12px; padding:10px; margin-top:12px;}
 
@@ -256,11 +239,8 @@
   </section>
 
   <section class="verse-strip" id="verseCard">
-    <div class="vs-text">
-      <div class="vtext" id="verseText"></div>
-      <div class="vmeta">📖 <span id="verseRef"></span> · <span class="vtimer" id="verseTimer"></span></div>
-    </div>
-    <div id="mascot" class="mascot m-walk" role="img" aria-label="Walking">🚶</div>
+    <div class="vtext" id="verseText"></div>
+    <div class="vmeta">📖 <span id="verseRef"></span> · <span class="vtimer" id="verseTimer"></span></div>
   </section>
 
   <div class="foot">October Challenge · Oct 1–31, 2026<br>Upload your completed card by Nov 12</div>
@@ -694,7 +674,7 @@ function applyDisplay(){
   $('#coachCard').style.display=d.coach===false?'none':'';
 }
 function render(){
-  renderTabs(); renderGoalChips(); renderMascot(); renderNudge(); renderVerse(); renderStats(); renderCoach(); renderBubbles(); renderLeaderboard(); renderEntries(); renderProfileList(); renderDisplayToggles(); applyDisplay();
+  renderTabs(); renderGoalChips(); renderNudge(); renderVerse(); renderStats(); renderCoach(); renderBubbles(); renderLeaderboard(); renderEntries(); renderProfileList(); renderDisplayToggles(); applyDisplay();
 }
 function renderTabs(){
   const el=$('#tabs');
@@ -759,18 +739,6 @@ function renderCoach(){
     <div class="coach-line">To finish the ${g}-mile by Oct 31: average <b>${fmt(needed)} mi/day</b> (about <b>${fmt(needed*7)} mi/week</b>). That's ${fmt(remaining)} miles over ${dl} day${dl===1?'':'s'}.</div>
     ${diff<=-2?`<div class="coach-line">Catch-up idea: one <b>${fmt(Math.min(remaining, needed+2))}-mile</b> session this week would erase most of the gap.</div>`:''}
     ${en.length>1?`<div class="coach-line" style="color:var(--muted);font-size:13px">Every mile counts once — the first ${en[0]} fill the ${en[0]}-mile, then the rest flow to the next challenge.</div>`:''}`;
-}
-function renderMascot(){
-  const p=activeProfile();
-  let act=selectedActivity;
-  if(p){
-    const es=entriesFor(p.id).sort((a,b)=> b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
-    if(es.length && ACTIVITIES[es[0].activity]) act=es[0].activity;
-  }
-  const m=$('#mascot'), a=ACTIVITIES[act]||ACTIVITIES.walk;
-  m.textContent=a.icon;
-  m.className='mascot m-'+act;
-  m.setAttribute('aria-label', a.label);
 }
 function daysLeft(){
   const n=new Date();
@@ -920,9 +888,11 @@ function renderProfileList(){
 /* ---------- form ---------- */
 function renderChips(){
   $('#actChips').innerHTML = Object.entries(ACTIVITIES).map(([k,a])=>
-    `<button type="button" class="chip${k===selectedActivity?' active':''}" data-act="${k}">${a.icon} ${a.label}</button>`).join('');
+    `<button type="button" class="chip${k===selectedActivity?' active':''}" data-act="${k}"><span class="aicon">${a.icon}</span> ${a.label}</button>`).join('');
   $('#actChips').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
-    selectedActivity=c.dataset.act; renderChips(); renderMascot();
+    selectedActivity=c.dataset.act; renderChips();
+    const ic=$('#actChips .chip.active .aicon');
+    if(ic){ void ic.offsetWidth; ic.classList.add('pop'); }
   });
 }
 function startEdit(id){

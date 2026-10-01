@@ -746,6 +746,7 @@ async function submitForm(){
   if(!(miles>0) || miles>100){ toast('Enter miles between 0.1 and 100'); return; }
   if(editingId){
     const e=store.data.entries.find(x=>x.id===editingId);
+    if(!e){ cancelEdit(); toast('That entry no longer exists'); return; }
     Object.assign(e,{date, activity:selectedActivity, miles, note});
     store.save(); render(); cancelEdit(); toast('Entry updated');
     cloudOp(()=>sb.from('challenge_entries').update({entry_date:date, activity:selectedActivity, miles, note:note||null}).eq('id',e.id), 'Edit not synced');
@@ -760,6 +761,7 @@ async function submitForm(){
 async function deleteEntry(id){
   if(!confirm('Delete this entry?')) return;
   store.data.entries=store.data.entries.filter(e=>e.id!==id);
+  if(id===editingId) cancelEdit();
   store.save(); render(); toast('Entry deleted');
   cloudOp(()=>sb.from('challenge_entries').delete().eq('id',id), 'Delete not synced');
 }

@@ -15,7 +15,7 @@
   body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:var(--bg); color:var(--navy); padding-bottom:96px;}
   header.hero{background:linear-gradient(135deg,#7fb9d9 0%,#5aa9d6 35%,#6fce62 100%);
-    color:#fff; padding:28px 20px 22px; text-align:center; position:relative; overflow:hidden;}
+    color:#fff; padding:24px 20px 18px; text-align:center; position:relative; overflow:hidden;}
   header.hero h1{margin:0; font-size:30px; letter-spacing:.5px; font-weight:800; text-shadow:0 1px 2px rgba(0,0,0,.15);}
   header.hero h1 .accent{color:#eafbe4;}
   header.hero p{margin:6px 0 0; font-size:13px; letter-spacing:2px; opacity:.95; font-weight:600;}
@@ -58,17 +58,30 @@
   .chrow{display:flex; gap:6px; align-items:center; margin-top:6px;}
   .chrow .cl{font-size:11.5px; color:var(--muted); font-weight:700; margin-right:2px;}
   .nudge{display:none; background:#fff8e1; border:1px solid #ffe082; color:#7a5c00; border-radius:12px;
-    padding:10px 14px; margin-top:10px; font-size:13.5px; font-weight:600; line-height:1.45;}
+    padding:8px 12px; margin-top:10px; font-size:13px; font-weight:600; line-height:1.45;}
   .nudge a{color:#b3272e; font-weight:800;}
   .coach-line{font-size:14px; line-height:1.55; margin:6px 0;}
   .coach-line:first-child{margin-top:0;} .coach-line:last-child{margin-bottom:0;}
   .coach-big{font-size:15px; font-weight:800;}
   .coach-ok{color:#2f7a3a;} .coach-warn{color:#b3272e;} .coach-mid{color:#8a6d00;}
-  .verse{background:linear-gradient(135deg,#fdf6e3,#fbeed1); border:1px solid #ecd9a8;}
-  .verse .vlabel{font-size:12px; font-weight:800; letter-spacing:.08em; color:#8a6d1a; margin-bottom:6px;}
-  .verse .vtext{font-size:15px; line-height:1.6; font-style:italic; color:#4a3c14;}
-  .verse .vref{font-size:13px; font-weight:800; color:#8a6d1a; margin-top:6px;}
-  .verse .vtimer{font-size:11.5px; color:var(--muted); margin-top:4px;}
+  /* slim verse strip with mascot */
+  .verse-strip{display:flex; align-items:center; gap:12px; margin-top:10px; padding:10px 8px 10px 14px;
+    background:linear-gradient(135deg,#fdf6e3,#fbeed1); border:1px solid #ecd9a8; border-radius:14px;}
+  .verse-strip .vs-text{flex:1; min-width:0;}
+  .verse-strip .vtext{font-size:13.5px; line-height:1.5; font-style:italic; color:#4a3c14;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .verse-strip .vmeta{font-size:11.5px; color:#8a6d1a; margin-top:3px; font-weight:700;}
+  .verse-strip .vmeta .vtimer{color:var(--muted); font-weight:400;}
+  .verse-strip .mascot{position:static; flex:none; font-size:44px; margin-right:2px;
+    animation:bobS .9s ease-in-out infinite; filter:drop-shadow(0 4px 3px rgba(0,0,0,.18));}
+  @keyframes bobS{0%,100%{transform:translateY(0) rotate(-5deg);}50%{transform:translateY(-7px) rotate(5deg);}}
+  .verse-strip .mascot.m-run{animation:bobS .45s ease-in-out infinite;}
+  .verse-strip .mascot.m-cycle{animation:bobS .6s ease-in-out infinite;}
+  .verse-strip .mascot.m-hike{animation:bobS 1.1s ease-in-out infinite;}
+  .verse-strip .mascot.m-swim{animation:swayS 1.7s ease-in-out infinite;}
+  @keyframes swayS{0%,100%{transform:translateX(-3px) rotate(-10deg);}50%{transform:translateX(3px) rotate(10deg);}}
+  .verse-strip .mascot.m-row{animation:rowmS 1.3s ease-in-out infinite;}
+  @keyframes rowmS{0%,100%{transform:translateY(0) rotate(-12deg);}50%{transform:translateY(-4px) rotate(12deg);}}
   /* bubbles */
   .bubbles{display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-top:6px;}
   .bub{aspect-ratio:1; border-radius:50%; border:2px solid #d8b93c; color:#b8932a; background:#fffdf4;
@@ -90,7 +103,6 @@
   .switch .sl:before{content:''; position:absolute; width:20px; height:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.25);}
   .switch input:checked + .sl{background:var(--green);}
   .switch input:checked + .sl:before{transform:translateX(20px);}
-  .track{margin-top:6px; height:58px; position:relative; overflow:hidden;}
   .mascot{font-size:46px; position:absolute; left:50%; top:2px; transform:translateX(-50%);
     animation:bob .9s ease-in-out infinite; filter:drop-shadow(0 4px 3px rgba(0,0,0,.18));}
   @keyframes bob{0%,100%{transform:translateX(-50%) translateY(0) rotate(-5deg);}50%{transform:translateX(-50%) translateY(-9px) rotate(5deg);}}
@@ -178,7 +190,6 @@
   <h1>October <span class="accent">Challenge</span></h1>
   <p>RUN · WALK · HIKE · CYCLE · SWIM · ROW</p>
   <div class="sub">20 · 50 · 100 miles through October</div>
-  <div class="track"><div id="mascot" class="mascot m-walk" role="img" aria-label="Walking">🚶</div></div>
 </header>
 
 <main>
@@ -186,11 +197,12 @@
   <div class="chips" id="goalChips" style="margin-top:10px"></div>
   <div class="nudge" id="nudge"></div>
 
-  <section class="card verse" id="verseCard">
-    <div class="vlabel">📖 STRENGTH FOR THE JOURNEY</div>
-    <div class="vtext" id="verseText"></div>
-    <div class="vref" id="verseRef"></div>
-    <div class="vtimer" id="verseTimer"></div>
+  <section class="verse-strip" id="verseCard">
+    <div class="vs-text">
+      <div class="vtext" id="verseText"></div>
+      <div class="vmeta">📖 <span id="verseRef"></span> · <span class="vtimer" id="verseTimer"></span></div>
+    </div>
+    <div id="mascot" class="mascot m-walk" role="img" aria-label="Walking">🚶</div>
   </section>
 
   <section class="card" id="statsCard">
@@ -338,7 +350,7 @@ function verseSlot(){ return Math.floor(Date.now()/VERSE_MS); }
 function renderVerse(){
   const v = VERSES[verseSlot() % VERSES.length];
   $('#verseText').textContent = '\u201C' + v.t + '\u201D';
-  $('#verseRef').textContent = '— ' + v.r;
+  $('#verseRef').textContent = v.r;
   const msLeft = VERSE_MS - (Date.now() % VERSE_MS);
   const h = Math.floor(msLeft/3600000), m = Math.floor(msLeft%3600000/60000);
   $('#verseTimer').textContent = `New verse in ${h}h ${m}m`;

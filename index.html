@@ -487,30 +487,41 @@ function shareStory(){
   bg.addColorStop(0,'#7ba7bd'); bg.addColorStop(0.55,'#7fae9f'); bg.addColorStop(1,'#8fbf62');
   x.fillStyle=bg; x.fillRect(0,0,W,H);
   x.textAlign='center'; x.textBaseline='alphabetic';
+  // soft gold glow behind the title
+  const glow=x.createRadialGradient(W/2,260,60,W/2,260,540);
+  glow.addColorStop(0,'rgba(255,220,130,.30)'); glow.addColorStop(1,'rgba(255,220,130,0)');
+  x.fillStyle=glow; x.fillRect(0,0,W,720);
+  // title with auto-fit so it never overflows the canvas
   const titleLine=(txt,y,size,c1,c2)=>{
-    x.font='italic 800 '+size+'px system-ui,-apple-system,sans-serif';
-    x.lineWidth=Math.max(6,Math.round(size/14)); x.lineJoin='round';
+    let s=size;
+    const mk=()=>'italic 800 '+s+'px system-ui,-apple-system,sans-serif';
+    x.font=mk();
+    while(x.measureText(txt).width>W-90 && s>28){ s-=4; x.font=mk(); }
+    x.lineWidth=Math.max(6,Math.round(s/14)); x.lineJoin='round';
     x.strokeStyle='#ffffff'; x.strokeText(txt,W/2,y);
-    const gr=x.createLinearGradient(0,y-size,0,y);
+    const gr=x.createLinearGradient(0,y-s,0,y);
     gr.addColorStop(0,c1); gr.addColorStop(1,c2);
     x.fillStyle=gr; x.fillText(txt,W/2,y);
   };
-  titleLine(g+'-MILE',250,150,'#63a8d4','#2f6da3');
-  titleLine('OCTOBER CHALLENGE',382,102,'#a5d86e','#4f9e42');
+  titleLine(g+'-MILE',215,150,'#63a8d4','#2f6da3');
+  titleLine('OCTOBER CHALLENGE',335,102,'#a5d86e','#4f9e42');
   x.fillStyle='#ffffff'; x.font='600 34px system-ui,-apple-system,sans-serif';
-  x.fillText('RUN | WALK | HIKE | CYCLE | SWIM | ROW',W/2,452);
-  x.fillText(g+' MILES THROUGH THE MONTH OF OCTOBER',W/2,500);
+  x.fillText('RUN | WALK | HIKE | CYCLE | SWIM | ROW',W/2,405);
+  x.fillText(g+' MILES THROUGH THE MONTH OF OCTOBER',W/2,450);
   x.fillStyle='#fff6da'; x.font='800 40px system-ui,-apple-system,sans-serif';
-  x.fillText(p.name.toUpperCase()+'  ·  '+fmt(t)+' / '+g+' MI  ·  '+pct+'%',W/2,574);
+  x.fillText(p.name.toUpperCase()+'  ·  '+fmt(t)+' / '+g+' MI  ·  '+pct+'%',W/2,512);
+  const st=streakFor(p.id);
+  x.fillStyle='#ffd98a'; x.font='800 38px system-ui,-apple-system,sans-serif';
+  x.fillText(st>0?('🔥 '+st+' DAY STREAK'):'EVERY MILE COUNTS!',W/2,562);
   // name pill
-  x.fillStyle='rgba(255,255,255,.93)'; rr(x,60,612,W-120,78,39); x.fill();
+  x.fillStyle='rgba(255,255,255,.93)'; rr(x,60,600,W-120,78,39); x.fill();
   x.fillStyle='#5a5a5a'; x.font='700 38px system-ui,-apple-system,sans-serif'; x.textAlign='left';
-  x.fillText('NAME:  '+p.name.toUpperCase(),112,663);
+  x.fillText('NAME:  '+p.name.toUpperCase(),112,651);
   x.textAlign='center';
   // bubble grid panel
   const cols=7, rows=Math.ceil(g/cols);
   const rh=Math.min(116,950/rows);
-  const ptop=736, gridTop=ptop+48, gridH=rh*rows;
+  const ptop=716, gridTop=ptop+48, gridH=rh*rows;
   const lastCount=g%cols===0?cols:g%cols, inline=cols-lastCount>=3;
   const pbot=gridTop+gridH+(inline?48:96);
   x.fillStyle=CREAM; rr(x,60,ptop,W-120,pbot-ptop,40); x.fill();

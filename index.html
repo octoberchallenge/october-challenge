@@ -255,7 +255,8 @@
     <div class="closeRow"><button id="closeLb" aria-label="Close">✕</button></div>
     <h2 id="lbTitle">Leaderboard</h2>
     <div id="leaderboard"></div>
-    <button class="btn secondary" id="storyBtn" type="button" style="margin-top:10px">📸 Share to Instagram Story</button>
+    <button class="btn secondary" id="storyBtn" type="button" style="margin-top:10px">📸 Share leaderboard to Instagram Story</button>
+    <button class="btn secondary" id="myStoryBtn" type="button" style="margin-top:8px">📸 Share my progress</button>
   </div>
 </div>
 
@@ -633,6 +634,126 @@ function shareStory(){
     }
   },'image/png');
 }
+/* ---------- shared share flow + leaderboard story image ---------- */
+function shareCanvas(c,title,text,filename){
+  c.toBlob(blob=>{
+    if(!blob){ toast('Could not create image'); return; }
+    const file=new File([blob],filename,{type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:title,text:text}).catch(()=>{});
+    } else {
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download=filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      toast('Image saved — post it to your story');
+    }
+  },'image/png');
+}
+function lbRows(){
+  const g=activeGoal();
+  return store.data.profiles.filter(p=>enrolled(p).includes(g))
+    .map(p=>{ const t=allocatedFor(p.id,g); return {p,t,pct:Math.min(100,t/g*100)}; })
+    .sort((a,b)=>b.pct-a.pct);
+}
+function shareLeaderboard(){
+  const g=activeGoal(), CH=CHALLENGES[g];
+  const rows=lbRows();
+  const W=1080,H=1920, c=document.createElement('canvas'); c.width=W; c.height=H;
+  const x=c.getContext('2d');
+  if(!x || !c.toBlob){ toast('Sharing is not supported in this browser'); return; }
+  const F='system-ui,-apple-system,sans-serif';
+  x.textAlign='center'; x.textBaseline='alphabetic';
+  // deep evergreen background + diagonal sheen
+  const bg=x.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#0e2f25'); bg.addColorStop(0.5,'#134233'); bg.addColorStop(1,'#081b15');
+  x.fillStyle=bg; x.fillRect(0,0,W,H);
+  const sheen=x.createLinearGradient(0,0,W,H);
+  sheen.addColorStop(0.42,'rgba(255,255,255,0)');
+  sheen.addColorStop(0.5,'rgba(255,255,255,.05)');
+  sheen.addColorStop(0.58,'rgba(255,255,255,0)');
+  x.fillStyle=sheen; x.fillRect(0,0,W,H);
+  // certificate frame
+  x.lineWidth=3; x.strokeStyle='#c9a227';
+  rr(x,36,36,1008,1848,34); x.stroke();
+  x.lineWidth=1; x.strokeStyle='rgba(201,162,39,.55)';
+  rr(x,54,54,972,1812,26); x.stroke();
+  [[90,90],[990,90],[90,1830],[990,1830]].forEach(([cx,cy])=>{
+    x.save(); x.translate(cx,cy); x.rotate(Math.PI/4);
+    x.fillStyle='#c9a227'; x.fillRect(-9,-9,18,18); x.restore();
+  });
+  // eyebrow
+  x.fillStyle='#e9d8a6'; x.font='600 37px '+F;
+  ssSpaced(x,'✦  OCTOBER CHALLENGE  ✦',W/2,208,10);
+  // gold-foil hero with auto-fit
+  let hs=168;
+  const hero='LEADERBOARD';
+  const hfont=()=>'italic 900 '+hs+'px '+F;
+  x.font=hfont();
+  while(x.measureText(hero).width>920 && hs>70){ hs-=6; x.font=hfont(); }
+  x.save();
+  x.shadowColor='rgba(0,0,0,.55)'; x.shadowBlur=24; x.shadowOffsetY=8;
+  const fg=x.createLinearGradient(0,240,0,440);
+  fg.addColorStop(0,'#f9e79a'); fg.addColorStop(0.48,'#c9992b');
+  fg.addColorStop(0.55,'#a87e1c'); fg.addColorStop(1,'#f3d47a');
+  x.fillStyle=fg;
+  x.fillText(hero,W/2,408);
+  x.restore();
+  // divider
+  x.strokeStyle='rgba(201,162,39,.8)'; x.lineWidth=2;
+  x.beginPath(); x.moveTo(300,462); x.lineTo(500,462); x.moveTo(580,462); x.lineTo(780,462); x.stroke();
+  x.save(); x.translate(W/2,462); x.rotate(Math.PI/4);
+  x.fillStyle='#c9a227'; x.fillRect(-11,-11,22,22); x.restore();
+  x.fillStyle='rgba(233,216,166,.85)'; x.font='600 31px '+F;
+  ssSpaced(x,CH.label.toUpperCase()+' · RANKED BY PROGRESS',W/2,522,5);
+  // ranked rows
+  const list=rows.slice(0,10);
+  const top=620, avail=1060;
+  const rowH=Math.min(170,Math.max(112,avail/Math.max(1,list.length)));
+  const medal=['#ffd43b','#cfd8dc','#d08a4e'];
+  list.forEach((r,i)=>{
+    const cy=top+i*rowH+rowH/2;
+    // rank badge
+    x.beginPath(); x.arc(170,cy,44,0,7);
+    x.fillStyle=medal[i]||'#e9d8a6'; x.fill();
+    x.fillStyle='#0e2f25'; x.font='900 52px '+F;
+    x.textAlign='center'; x.fillText(String(i+1),170,cy+18);
+    // name, auto-fit
+    let ns=54; x.font='800 '+ns+'px '+F; x.textAlign='left';
+    while(x.measureText(r.p.name).width>520 && ns>26){ ns-=4; x.font='800 '+ns+'px '+F; }
+    x.fillStyle='#f5e9c8'; x.fillText(r.p.name,240,cy-6);
+    // score, right aligned
+    x.textAlign='right';
+    x.fillStyle='#e9d8a6'; x.font='800 44px '+F;
+    x.fillText(Math.round(r.pct)+'%',910,cy-6);
+    x.font='600 30px '+F; x.fillStyle='rgba(233,216,166,.75)';
+    x.fillText(fmt(r.t)+' mi',910,cy+34);
+    x.textAlign='center';
+    // progress bar
+    const bw=670, bx=240, by=cy+52;
+    x.fillStyle='rgba(255,255,255,.12)';
+    rr(x,bx,by,bw,20,10); x.fill();
+    if(r.pct>0){
+      const grd=x.createLinearGradient(bx,0,bx+bw,0);
+      grd.addColorStop(0,'#f9e79a'); grd.addColorStop(1,'#c9992b');
+      x.fillStyle=grd;
+      rr(x,bx,by,Math.max(20,bw*r.pct/100),20,10); x.fill();
+    }
+  });
+  if(!list.length){
+    x.fillStyle='rgba(245,233,200,.8)'; x.font='600 40px '+F;
+    x.fillText('No trackers yet —',W/2,760);
+    x.fillText('be the first to log miles!',W/2,820);
+  }
+  if(rows.length>10){
+    x.fillStyle='rgba(233,216,166,.7)'; x.font='600 30px '+F;
+    x.fillText('+ '+(rows.length-10)+' more',W/2,top+10*rowH+56);
+  }
+  x.fillStyle='#c9a227'; x.font='600 30px '+F;
+  ssSpaced(x,'EVERY MILE COUNTS · KEEP GOING',W/2,1832,6);
+  ssGrain(x,2000); ssVignette(x,0.22);
+  shareCanvas(c,'October Challenge','Leaderboard — '+CH.label,'october-leaderboard.png');
+}
 /* ---------- toast & confetti ---------- */
 let toastT=null;
 function toast(msg){
@@ -831,9 +952,7 @@ function bubbleTap(i){
 function renderLeaderboard(){
   const g=activeGoal(), CH=CHALLENGES[g];
   $('#lbTitle').textContent='Leaderboard · '+CH.label;
-  const rows=store.data.profiles.filter(p=>enrolled(p).includes(g))
-    .map(p=>{ const t=allocatedFor(p.id,g); return {p, t, pct:Math.min(100,t/g*100)}; })
-    .sort((a,b)=>b.pct-a.pct);
+  const rows=lbRows();
   const top=rows.length?rows[0].pct:0;
   $('#leaderboard').innerHTML = rows.map((r,i)=>{
     const gap = i===0 ? '' : `<div class="ahead">${Math.round(top-r.pct)}% behind ${esc(rows[0].p.name)}</div>`;
@@ -999,7 +1118,8 @@ function init(){
   $('#cancelEdit').onclick=cancelEdit;
   $('#mMinus').onclick=()=>{ const f=$('#fMiles'); f.value=Math.max(0,(parseFloat(f.value)||0)-0.5).toFixed(1).replace(/\.0$/,''); };
   $('#mPlus').onclick=()=>{ const f=$('#fMiles'); f.value=((parseFloat(f.value)||0)+0.5).toFixed(1).replace(/\.0$/,''); };
-  $('#storyBtn').onclick=shareStory;
+  $('#storyBtn').onclick=shareLeaderboard;
+  $('#myStoryBtn').onclick=shareStory;
   $('#settingsBtn').onclick=()=>{ $('#sbUrl').value=store.data.supabase.url||''; $('#sbKey').value=store.data.supabase.key||'';
     renderProfileList(); $('#settingsModal').classList.add('open'); };
   $('#closeSettings').onclick=()=>$('#settingsModal').classList.remove('open');

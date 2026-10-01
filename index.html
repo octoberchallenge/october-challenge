@@ -199,6 +199,10 @@
     <button class="btn" id="openLogBtn" type="button" style="font-size:17px; padding:16px;">＋ Log miles</button>
   </section>
 
+  <section style="margin-top:10px">
+    <button class="btn" id="openLbBtn" type="button" style="font-size:17px; padding:16px;">🏆 Leaderboard</button>
+  </section>
+
   <section class="card" id="coachCard">
     <h2>🎯 Game plan <span id="coachGoal" style="color:var(--muted);font-weight:600"></span></h2>
     <div id="coach"></div>
@@ -208,12 +212,6 @@
     <h2>Mile bubbles</h2>
     <p class="hint" style="margin:0 0 2px">Tap a bubble to log miles up to that number.</p>
     <div class="bubbles" id="bubbles"></div>
-  </section>
-
-  <section class="card">
-    <h2 id="lbTitle">Leaderboard</h2>
-    <div id="leaderboard"></div>
-    <button class="btn secondary" id="storyBtn" type="button">📸 Share to Instagram Story</button>
   </section>
 
   <section class="card">
@@ -249,6 +247,15 @@
       <button class="btn" id="submitBtn" type="submit">Add miles</button>
       <button class="btn secondary" id="cancelEdit" type="button" style="display:none">Cancel edit</button>
     </form>
+  </div>
+</div>
+
+<div class="modal" id="lbModal">
+  <div class="sheet">
+    <div class="closeRow"><button id="closeLb" aria-label="Close">✕</button></div>
+    <h2 id="lbTitle">Leaderboard</h2>
+    <div id="leaderboard"></div>
+    <button class="btn secondary" id="storyBtn" type="button" style="margin-top:10px">📸 Share to Instagram Story</button>
   </div>
 </div>
 
@@ -825,16 +832,18 @@ function renderLeaderboard(){
   const g=activeGoal(), CH=CHALLENGES[g];
   $('#lbTitle').textContent='Leaderboard · '+CH.label;
   const rows=store.data.profiles.filter(p=>enrolled(p).includes(g))
-    .sort((a,b)=>allocatedFor(b.id,g)-allocatedFor(a.id,g));
-  const top=rows.length?allocatedFor(rows[0].id,g):0;
-  $('#leaderboard').innerHTML = rows.map((p,i)=>{
-    const t=allocatedFor(p.id,g), pct=Math.min(100,t/g*100);
-    const gap = i===0 ? '' : `<div class="ahead">${fmt(top-t)} mi behind ${esc(rows[0].name)}</div>`;
-    return `<div class="lbrow"><div class="top"><span><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span> ${esc(p.name)}</span>
-      <span class="sc">${fmt(t)} mi · ${Math.round(pct)}%</span></div>
-      <div class="bar" style="margin:0"><div style="width:${pct}%;background:${CH.grad}"></div></div>${gap}</div>`;
+    .map(p=>{ const t=allocatedFor(p.id,g); return {p, t, pct:Math.min(100,t/g*100)}; })
+    .sort((a,b)=>b.pct-a.pct);
+  const top=rows.length?rows[0].pct:0;
+  $('#leaderboard').innerHTML = rows.map((r,i)=>{
+    const gap = i===0 ? '' : `<div class="ahead">${Math.round(top-r.pct)}% behind ${esc(rows[0].p.name)}</div>`;
+    return `<div class="lbrow"><div class="top"><span><span class="dot" style="background:${esc(r.p.color||'#2b8fc4')}"></span> ${esc(r.p.name)}</span>
+      <span class="sc">${fmt(r.t)} mi · ${Math.round(r.pct)}%</span></div>
+      <div class="bar" style="margin:0"><div style="width:${r.pct}%;background:${CH.grad}"></div></div>${gap}</div>`;
   }).join('') || `<div class="empty">No trackers in this challenge yet.</div>`;
 }
+function openLb(){ $('#lbModal').classList.add('open'); document.body.style.overflow='hidden'; }
+function closeLb(){ $('#lbModal').classList.remove('open'); document.body.style.overflow=''; }
 function renderEntries(){
   const p=activeProfile();
   const list = p ? entriesFor(p.id).sort((a,b)=> b.date.localeCompare(a.date)) : [];
@@ -981,9 +990,12 @@ function init(){
   renderChips();
   $('#submitBtn').onclick=submitForm;
   $('#openLogBtn').onclick=()=>{ cancelEdit(); openLog(); };
+  $('#openLbBtn').onclick=()=>{ renderLeaderboard(); openLb(); };
+  $('#closeLb').onclick=closeLb;
+  $('#lbModal').onclick=e=>{ if(e.target.id==='lbModal') closeLb(); };
   $('#closeLog').onclick=()=>{ cancelEdit(); closeLog(); };
   $('#logModal').onclick=e=>{ if(e.target.id==='logModal'){ cancelEdit(); closeLog(); } };
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape' && $('#logModal').classList.contains('open')){ cancelEdit(); closeLog(); } });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if($('#logModal').classList.contains('open')){ cancelEdit(); closeLog(); } if($('#lbModal').classList.contains('open')) closeLb(); } });
   $('#cancelEdit').onclick=cancelEdit;
   $('#mMinus').onclick=()=>{ const f=$('#fMiles'); f.value=Math.max(0,(parseFloat(f.value)||0)-0.5).toFixed(1).replace(/\.0$/,''); };
   $('#mPlus').onclick=()=>{ const f=$('#fMiles'); f.value=((parseFloat(f.value)||0)+0.5).toFixed(1).replace(/\.0$/,''); };

@@ -248,6 +248,19 @@
   </div>
 </div>
 
+<div class="modal" id="setupModal">
+  <div class="sheet">
+    <h2>Welcome! 🎉</h2>
+    <p class="hint">Set up your tracker in 10 seconds. Your data stays on this phone.</p>
+    <label class="fl" for="setupName">Your name</label>
+    <input type="text" id="setupName" placeholder="Your name" maxlength="30" autocomplete="off">
+    <label class="fl">Challenge cards</label>
+    <div class="chips" id="setupChips"></div>
+    <p class="hint" style="margin-top:8px">Pick one, two, or all three — your miles fill them in order.</p>
+    <button class="btn" id="setupStart" type="button">Start tracking</button>
+  </div>
+</div>
+
 <div class="modal" id="lbModal">
   <div class="sheet">
     <div class="closeRow"><button id="closeLb" aria-label="Close">✕</button></div>
@@ -370,7 +383,7 @@ const store = {
     try{ this.data = JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ this.data=null; }
     if(!this.data || !Array.isArray(this.data.profiles)){
       this.data = { profiles:[{id:uid(), name:'Pat', color:COLORS[0], challenges:[50]}],
-        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, display:{bubbles:false, verse:true, coach:true}, v:4 };
+        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, display:{bubbles:false, verse:true, coach:true}, onboarded:false, v:5 };
     }
     if(!this.data.v){
       this.data.v = 2;
@@ -398,6 +411,12 @@ const store = {
       const dflt={bubbles:false, verse:true, coach:true};
       this.data.display = Object.assign({}, dflt, this.data.display||{});
       this.data.v = 4;
+      this.save();
+    }
+    if(this.data.v < 5){
+      // v5: first-launch welcome setup — existing users skip it
+      this.data.onboarded = true;
+      this.data.v = 5;
       this.save();
     }
     if(!this.data.milestones) this.data.milestones = {};
@@ -1043,6 +1062,38 @@ function cancelEdit(){
 }
 function openLog(){ $('#logModal').classList.add('open'); document.body.style.overflow='hidden'; }
 function closeLog(){ $('#logModal').classList.remove('open'); document.body.style.overflow=''; }
+/* ---------- first-launch welcome setup ---------- */
+let setupChallenges=[50];
+function renderSetupChips(){
+  $('#setupChips').innerHTML=[20,50,100].map(g=>
+    `<button type="button" class="chip${setupChallenges.includes(g)?' active':''}" data-g="${g}">${g}-Mile</button>`).join('');
+  $('#setupChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{
+    const g=+b.dataset.g;
+    if(setupChallenges.includes(g)){
+      if(setupChallenges.length>1) setupChallenges=setupChallenges.filter(x=>x!==g);
+    } else setupChallenges.push(g);
+    renderSetupChips();
+  });
+}
+function openSetup(){
+  setupChallenges=[50];
+  const p=activeProfile();
+  $('#setupName').value = (p && p.name && p.name!=='Pat') ? p.name : '';
+  renderSetupChips();
+  $('#setupModal').classList.add('open'); document.body.style.overflow='hidden';
+}
+function finishSetup(){
+  const p=activeProfile(); if(!p) return;
+  const nm=$('#setupName').value.trim();
+  p.name=(nm||'Me').slice(0,30);
+  p.challenges=setupChallenges.slice().sort((a,b)=>a-b);
+  store.data.selected[p.id]=p.challenges[0];
+  store.data.onboarded=true;
+  store.save();
+  $('#setupModal').classList.remove('open'); document.body.style.overflow='';
+  render();
+}
+function maybeSetup(){ if(!store.data.onboarded) openSetup(); }
 async function submitForm(){
   const p=activeProfile();
   if(!p){ toast('Add a tracker in Settings first'); return; }
@@ -1134,9 +1185,11 @@ function init(){
   $('#cloudRefresh').onclick=async()=>{ try{ await pullFromCloud(); render(); toast('Refreshed from cloud'); }
     catch(e){ toast('Refresh failed: '+(e.message||e)); } };
   $('#cloudDisconnect').onclick=()=>{ store.data.supabase={url:'',key:''}; store.save(); sb=null; updateCloudUI(); toast('Disconnected — using this device only'); };
+  $('#setupStart').onclick=finishSetup;
+  maybeSetup();
   $('#wipeData').onclick=()=>{
     if(!confirm('Erase ALL local data (profiles + entries)? This cannot be undone.')) return;
-    localStorage.removeItem(LS_KEY); store.load(); initSupabase(); render(); toast('Local data erased');
+    localStorage.removeItem(LS_KEY); store.load(); initSupabase(); render(); maybeSetup(); toast('Local data erased');
   };
   initSupabase();
   render();

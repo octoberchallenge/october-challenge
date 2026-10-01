@@ -41,10 +41,11 @@
   .bar > div{height:100%; border-radius:99px; background:linear-gradient(90deg,var(--blue),var(--green));
     transition:width .5s ease;}
   .pct{font-size:13px; color:var(--muted); font-weight:600;}
-  .statgrid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px;}
-  .stat{background:#f6fafd; border:1px solid var(--line); border-radius:12px; padding:10px 12px;}
-  .stat .v{font-size:20px; font-weight:800;}
-  .stat .l{font-size:11.5px; color:var(--muted); margin-top:2px; letter-spacing:.3px;}
+  .statgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px;}
+  .stat{background:#f6fafd; border:1px solid var(--line); border-radius:12px; padding:8px 4px; text-align:center;}
+  .stat .v{font-size:17px; font-weight:800;}
+  .stat .l{font-size:9px; color:var(--muted); margin-top:2px; letter-spacing:.3px; line-height:1.35;}
+  #statsTitle{margin-bottom:4px;}
 
   .gchip .dot{margin-right:2px;}
   .gchip.active.c20{border-color:#3fa34d; background:#e9f7ec; color:#2f7a3a;}
@@ -187,20 +188,17 @@
     <div class="bar"><div id="barFill" style="width:0%"></div></div>
     <div class="pct" id="pctTxt">0% complete</div>
     <div class="statgrid">
-      <div class="stat"><div class="v" id="stRemain">50</div><div class="l">MILES TO GO</div></div>
-      <div class="stat"><div class="v" id="stPace">1.6</div><div class="l">MI / DAY NEEDED</div></div>
-      <div class="stat"><div class="v" id="stStreak">0</div><div class="l">DAY STREAK</div></div>
-      <div class="stat"><div class="v" id="stBest">0</div><div class="l">BEST DAY (MI)</div></div>
+      <div class="stat"><div class="v" id="stRemain">50</div><div class="l">TO GO</div></div>
+      <div class="stat"><div class="v" id="stPace">1.6</div><div class="l">MI / DAY</div></div>
+      <div class="stat"><div class="v" id="stStreak">0</div><div class="l">STREAK</div></div>
+      <div class="stat"><div class="v" id="stBest">0</div><div class="l">BEST DAY</div></div>
     </div>
     <div id="completeBadge"></div>
   </section>
 
-  <section style="margin-top:10px">
-    <button class="btn" id="openLogBtn" type="button" style="font-size:17px; padding:16px;">＋ Log miles</button>
-  </section>
-
-  <section style="margin-top:10px">
-    <button class="btn" id="openLbBtn" type="button" style="font-size:17px; padding:16px;">🏆 Leaderboard</button>
+  <section style="margin-top:10px; display:flex; gap:10px;">
+    <button class="btn" id="openLogBtn" type="button" style="flex:1.25; margin-top:0; font-size:17px; padding:14px 6px;">＋ Log miles</button>
+    <button class="btn secondary" id="openLbBtn" type="button" style="flex:1; margin-top:0; font-size:17px; padding:14px 6px;">🏆 Leaderboard</button>
   </section>
 
   <section class="card" id="coachCard">

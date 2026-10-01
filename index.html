@@ -46,18 +46,6 @@
   .stat .v{font-size:20px; font-weight:800;}
   .stat .l{font-size:11.5px; color:var(--muted); margin-top:2px; letter-spacing:.3px;}
 
-  /* bubbles */
-  .bubbles{display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-top:6px;}
-  .bub{aspect-ratio:1; border-radius:50%; border:2px solid #d8b93c; color:#b8932a; background:#fffdf4;
-    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px;}
-  .bub.done{border-color:transparent; color:#fff; background:linear-gradient(135deg,var(--blue),var(--green));
-    box-shadow:0 2px 6px rgba(43,143,196,.35);}
-  .bub.done.c20{background:linear-gradient(135deg,#6fce62,#2f9e44); box-shadow:0 2px 6px rgba(63,163,77,.35);}
-  .bub.done.c50{background:linear-gradient(135deg,#5aa9d6,#6fce62); box-shadow:0 2px 6px rgba(43,143,196,.35);}
-  .bub.done.c100{background:linear-gradient(135deg,#ff8787,#c92a2a); box-shadow:0 2px 6px rgba(201,42,42,.35);}
-  .bubbles.c20{grid-template-columns:repeat(5,1fr);}
-  .bubbles.c100{grid-template-columns:repeat(10,1fr); gap:6px;}
-  .bubbles.c100 .bub{font-size:11px; border-width:1.5px;}
   .gchip .dot{margin-right:2px;}
   .gchip.active.c20{border-color:#3fa34d; background:#e9f7ec; color:#2f7a3a;}
   .gchip.active.c50{border-color:var(--blue); background:#eaf5fc; color:var(--blue-dark);}
@@ -168,7 +156,7 @@
 <header class="hero">
   <h1>October <span class="accent">Challenge</span></h1>
   <p>RUN · WALK · HIKE · CYCLE · SWIM · ROW</p>
-  <div class="sub">20 · 50 · 100 miles through October — one bubble = one mile</div>
+  <div class="sub">20 · 50 · 100 miles through October</div>
   <div class="track"><div id="mascot" class="mascot m-walk" role="img" aria-label="Walking">🚶</div></div>
 </header>
 
@@ -201,11 +189,6 @@
   <section class="card" id="coachCard">
     <h2>🎯 Game plan <span id="coachGoal" style="color:var(--muted);font-weight:600"></span></h2>
     <div id="coach"></div>
-  </section>
-
-  <section class="card">
-    <h2>Mile bubbles</h2>
-    <div class="bubbles" id="bubbles"></div>
   </section>
 
   <section class="card" id="logCard">
@@ -472,7 +455,7 @@ function activeGoal(){
   return en.includes(sel) ? sel : en[0];
 }
 function render(){
-  renderTabs(); renderGoalChips(); renderMascot(); renderNudge(); renderVerse(); renderStats(); renderCoach(); renderBubbles(); renderLeaderboard(); renderEntries(); renderProfileList();
+  renderTabs(); renderGoalChips(); renderMascot(); renderNudge(); renderVerse(); renderStats(); renderCoach(); renderLeaderboard(); renderEntries(); renderProfileList();
 }
 function renderTabs(){
   const el=$('#tabs');
@@ -594,20 +577,6 @@ function renderStats(){
       }
     }
   }
-}
-function renderBubbles(){
-  const p=activeProfile(), g=activeGoal(), CH=CHALLENGES[g];
-  const t=p?allocatedFor(p.id,g):0;
-  const whole=Math.floor(t), frac=t-whole;
-  $('#bubbles').className='bubbles '+CH.css;
-  let html='';
-  for(let i=1;i<=g;i++){
-    if(i<=whole) html+=`<div class="bub done ${CH.css}">${i}</div>`;
-    else if(i===whole+1 && frac>0.009)
-      html+=`<div class="bub" style="background:linear-gradient(to top, #bfe3f5 ${Math.round(frac*100)}%, #fffdf4 ${Math.round(frac*100)}%)">${i}</div>`;
-    else html+=`<div class="bub">${i}</div>`;
-  }
-  $('#bubbles').innerHTML=html;
 }
 function renderLeaderboard(){
   const g=activeGoal(), CH=CHALLENGES[g];

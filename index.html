@@ -60,6 +60,7 @@
   .nudge{display:none; background:#fff8e1; border:1px solid #ffe082; color:#7a5c00; border-radius:12px;
     padding:8px 12px; margin-top:10px; font-size:13px; font-weight:600; line-height:1.45;}
   .nudge a{color:#b3272e; font-weight:800;}
+  .nudge.top{margin:0; border-radius:0; border-left:0; border-right:0; border-top:0; text-align:center;}
   .coach-line{font-size:14px; line-height:1.55; margin:6px 0;}
   .coach-line:first-child{margin-top:0;} .coach-line:last-child{margin-bottom:0;}
   .coach-big{font-size:15px; font-weight:800;}
@@ -185,6 +186,7 @@
 </style>
 </head>
 <body>
+<div class="nudge top" id="nudge"></div>
 
 <header class="hero">
   <h1>October <span class="accent">Challenge</span></h1>
@@ -195,15 +197,6 @@
 <main>
   <div class="tabs" id="tabs"></div>
   <div class="chips" id="goalChips" style="margin-top:10px"></div>
-  <div class="nudge" id="nudge"></div>
-
-  <section class="verse-strip" id="verseCard">
-    <div class="vs-text">
-      <div class="vtext" id="verseText"></div>
-      <div class="vmeta">📖 <span id="verseRef"></span> · <span class="vtimer" id="verseTimer"></span></div>
-    </div>
-    <div id="mascot" class="mascot m-walk" role="img" aria-label="Walking">🚶</div>
-  </section>
 
   <section class="card" id="statsCard">
     <h2 id="statsTitle">Progress</h2>
@@ -260,6 +253,14 @@
   <section class="card">
     <h2>Recent entries</h2>
     <div id="entries"></div>
+  </section>
+
+  <section class="verse-strip" id="verseCard">
+    <div class="vs-text">
+      <div class="vtext" id="verseText"></div>
+      <div class="vmeta">📖 <span id="verseRef"></span> · <span class="vtimer" id="verseTimer"></span></div>
+    </div>
+    <div id="mascot" class="mascot m-walk" role="img" aria-label="Walking">🚶</div>
   </section>
 
   <div class="foot">October Challenge · Oct 1–31, 2026<br>Upload your completed card by Nov 12</div>

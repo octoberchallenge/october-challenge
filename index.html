@@ -242,6 +242,7 @@
     <h2 id="lbTitle">Leaderboard</h2>
     <div id="leaderboard"></div>
     <button class="btn secondary" id="shareBtn" type="button">Copy progress summary</button>
+    <button class="btn secondary" id="storyBtn" type="button" style="margin-top:8px">📸 Share to Instagram Story</button>
   </section>
 
   <section class="card">
@@ -456,6 +457,72 @@ async function cloudOp(fn, failMsg){
   catch(e){ toast(failMsg + ' — kept on this device only'); }
 }
 
+/* ---------- instagram story share ---------- */
+function rr(x,px,py,w,h,r){
+  x.beginPath(); x.moveTo(px+r,py);
+  x.arcTo(px+w,py,px+w,py+h,r); x.arcTo(px+w,py+h,px,py+h,r);
+  x.arcTo(px,py+h,px,py,r); x.arcTo(px,py,px+w,py,r); x.closePath();
+}
+function wrapText(x,text,cx,y,maxW,lh){
+  const words=text.split(' '); let line='',yy=y;
+  for(const w of words){
+    const t=line?line+' '+w:w;
+    if(x.measureText(t).width>maxW && line){ x.fillText(line,cx,yy); line=w; yy+=lh; }
+    else line=t;
+  }
+  x.fillText(line,cx,yy); return yy+lh;
+}
+// Build a 1080x1920 story image of current progress and hand it to the phone's share sheet
+function shareStory(){
+  const p=activeProfile(); if(!p){ toast('Add a tracker in Settings first'); return; }
+  const g=activeGoal(), CH=CHALLENGES[g];
+  const t=allocatedFor(p.id,g), pct=Math.min(100,Math.round(t/g*100));
+  const verse=VERSES[verseSlot()%VERSES.length];
+  const W=1080,H=1920, c=document.createElement('canvas'); c.width=W; c.height=H;
+  const x=c.getContext('2d');
+  if(!x || !c.toBlob){ toast('Sharing is not supported in this browser'); return; }
+  const bg=x.createLinearGradient(0,0,0,H); bg.addColorStop(0,'#164063'); bg.addColorStop(1,'#0c2740');
+  x.fillStyle=bg; x.fillRect(0,0,W,H);
+  x.textAlign='center'; x.textBaseline='alphabetic';
+  x.fillStyle='#e8b93c'; x.font='800 54px system-ui,-apple-system,sans-serif';
+  x.fillText('OCTOBER CHALLENGE',W/2,220);
+  x.fillStyle='#ffffff'; x.font='700 46px system-ui,-apple-system,sans-serif';
+  x.fillText(p.name,W/2,300);
+  x.fillStyle='#e8b93c'; x.font='800 40px system-ui,-apple-system,sans-serif';
+  x.fillText(CH.label.toUpperCase()+'  ·  OCT 1–31',W/2,368);
+  x.fillStyle='#ffffff'; x.font='800 175px system-ui,-apple-system,sans-serif';
+  x.fillText(fmt(t),W/2,640);
+  x.fillStyle='#9fc3dd'; x.font='600 56px system-ui,-apple-system,sans-serif';
+  x.fillText('/ '+g+' miles',W/2,722);
+  const bw=W-240,bx=120,by=800,bh=36;
+  x.fillStyle='rgba(255,255,255,.18)'; rr(x,bx,by,bw,bh,18); x.fill();
+  if(pct>0){ x.fillStyle='#e8b93c'; rr(x,bx,by,Math.max(bh,bw*pct/100),bh,18); x.fill(); }
+  x.fillStyle='#ffffff'; x.font='800 62px system-ui,-apple-system,sans-serif';
+  x.fillText(pct+'% complete',W/2,922);
+  x.font='150px serif'; x.fillText(ACTIVITIES[selectedActivity].icon,W/2,1120);
+  const st=streakFor(p.id);
+  x.fillStyle='#ffd98a'; x.font='700 48px system-ui,-apple-system,sans-serif';
+  x.fillText(st>0?('🔥 '+st+' day streak'):'Every mile counts!',W/2,1210);
+  x.fillStyle='#f3e6c3'; x.font='italic 44px system-ui,-apple-system,sans-serif';
+  const endY=wrapText(x,'\u201C'+verse.t+'\u201D',W/2,1360,W-200,62);
+  x.fillStyle='#e8b93c'; x.font='700 40px system-ui,-apple-system,sans-serif';
+  x.fillText('— '+verse.r,W/2,endY+18);
+  x.fillStyle='rgba(255,255,255,.55)'; x.font='600 34px system-ui,-apple-system,sans-serif';
+  x.fillText('Oct 1–31, 2026',W/2,H-90);
+  c.toBlob(blob=>{
+    if(!blob){ toast('Could not create image'); return; }
+    const file=new File([blob],'october-challenge.png',{type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:'October Challenge',text:p.name+': '+fmt(t)+'/'+g+' mi'}).catch(()=>{});
+    } else {
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download='october-challenge.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      toast('Image saved — post it to your story');
+    }
+  },'image/png');
+}
 /* ---------- toast & confetti ---------- */
 let toastT=null;
 function toast(msg){
@@ -829,6 +896,7 @@ function init(){
     if(navigator.clipboard) navigator.clipboard.writeText(txt).then(()=>toast('Summary copied')).catch(()=>toast('Copy failed'));
     else toast('Clipboard not available');
   };
+  $('#storyBtn').onclick=shareStory;
   $('#settingsBtn').onclick=()=>{ $('#sbUrl').value=store.data.supabase.url||''; $('#sbKey').value=store.data.supabase.key||'';
     renderProfileList(); $('#settingsModal').classList.add('open'); };
   $('#closeSettings').onclick=()=>$('#settingsModal').classList.remove('open');

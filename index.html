@@ -76,6 +76,11 @@
   .coach-line:first-child{margin-top:0;} .coach-line:last-child{margin-bottom:0;}
   .coach-big{font-size:15px; font-weight:800;}
   .coach-ok{color:#2f7a3a;} .coach-warn{color:#b3272e;} .coach-mid{color:#8a6d00;}
+  .verse{background:linear-gradient(135deg,#fdf6e3,#fbeed1); border:1px solid #ecd9a8;}
+  .verse .vlabel{font-size:12px; font-weight:800; letter-spacing:.08em; color:#8a6d1a; margin-bottom:6px;}
+  .verse .vtext{font-size:15px; line-height:1.6; font-style:italic; color:#4a3c14;}
+  .verse .vref{font-size:13px; font-weight:800; color:#8a6d1a; margin-top:6px;}
+  .verse .vtimer{font-size:11.5px; color:var(--muted); margin-top:4px;}
   .track{margin-top:6px; height:58px; position:relative; overflow:hidden;}
   .mascot{font-size:46px; position:absolute; left:50%; top:2px; transform:translateX(-50%);
     animation:bob .9s ease-in-out infinite; filter:drop-shadow(0 4px 3px rgba(0,0,0,.18));}
@@ -172,6 +177,13 @@
   <div class="chips" id="goalChips" style="margin-top:10px"></div>
   <div class="nudge" id="nudge"></div>
 
+  <section class="card verse">
+    <div class="vlabel">📖 STRENGTH FOR THE JOURNEY</div>
+    <div class="vtext" id="verseText"></div>
+    <div class="vref" id="verseRef"></div>
+    <div class="vtimer" id="verseTimer"></div>
+  </section>
+
   <section class="card" id="statsCard">
     <h2 id="statsTitle">Progress</h2>
     <div class="big"><span id="totalMi">0</span> <small id="goalMi">/ 50 mi</small></div>
@@ -238,7 +250,7 @@
     <h2>Settings</h2>
 
     <h3>Trackers</h3>
-    <p class="hint">Add the people doing the challenge (e.g. you and your husband). Each gets their own bubbles and log. Use the 20 / 50 / 100 buttons to pick which distances each person is doing.</p>
+    <p class="hint">Your tracker is below — rename it any time. Use the 20 / 50 / 100 buttons to pick which distances you're doing. You can add more trackers if someone joins you.</p>
     <div id="profileList"></div>
     <button class="btn secondary" id="addProfile" type="button">+ Add tracker</button>
 
@@ -278,6 +290,44 @@ const ACTIVITIES = {
   swim: {label:'Swim', icon:'🏊'},
   row:  {label:'Row',  icon:'🚣'}
 };
+// Rotating encouragement: verses on caring for the body, discipline, and doing hard things.
+// A new one is picked every 4 hours, always different from the last.
+const VERSES = [
+  {t:"Do you not know that your body is a temple of the Holy Spirit within you? So glorify God in your body.", r:"1 Corinthians 6:19-20"},
+  {t:"Run in such a way as to get the prize.", r:"1 Corinthians 9:24"},
+  {t:"I discipline my body and keep it under control.", r:"1 Corinthians 9:27"},
+  {t:"I can do all things through him who strengthens me.", r:"Philippians 4:13"},
+  {t:"They who wait for the Lord shall renew their strength; they shall run and not be weary.", r:"Isaiah 40:31"},
+  {t:"God gave us a spirit not of fear but of power and love and self-control.", r:"2 Timothy 1:7"},
+  {t:"Let us run with endurance the race that is set before us.", r:"Hebrews 12:1"},
+  {t:"While bodily training is of some value, godliness is of value in every way.", r:"1 Timothy 4:8"},
+  {t:"Let us not grow weary of doing good, for in due season we will reap, if we do not give up.", r:"Galatians 6:9"},
+  {t:"Be strong and courageous, for the Lord your God is with you wherever you go.", r:"Joshua 1:9"},
+  {t:"Present your bodies as a living sacrifice, holy and acceptable to God.", r:"Romans 12:1"},
+  {t:"I press on toward the goal for the prize.", r:"Philippians 3:14"},
+  {t:"Though our outer self is wasting away, our inner self is being renewed day by day.", r:"2 Corinthians 4:16"},
+  {t:"If you faint in the day of adversity, your strength is small.", r:"Proverbs 24:10"},
+  {t:"Fear not, for I am with you. I will strengthen you, I will help you.", r:"Isaiah 41:10"},
+  {t:"It is God who arms me with strength.", r:"Psalm 18:32"},
+  {t:"The joy of the Lord is your strength.", r:"Nehemiah 8:10"},
+  {t:"Seek the Lord and his strength; seek his presence continually.", r:"1 Chronicles 16:11"},
+  {t:"Be strong in the Lord and in the strength of his might.", r:"Ephesians 6:10"},
+  {t:"Be strong and courageous. He will not leave you or forsake you.", r:"Deuteronomy 31:6"},
+  {t:"Blessed is the one who remains steadfast under trial.", r:"James 1:12"},
+  {t:"Suffering produces endurance, and endurance produces character.", r:"Romans 5:3-4"},
+  {t:"I have fought the good fight, I have finished the race, I have kept the faith.", r:"2 Timothy 4:7"},
+  {t:"Whatever you do, work heartily, as for the Lord.", r:"Colossians 3:23"}
+];
+const VERSE_MS = 4*3600*1000;
+function verseSlot(){ return Math.floor(Date.now()/VERSE_MS); }
+function renderVerse(){
+  const v = VERSES[verseSlot() % VERSES.length];
+  $('#verseText').textContent = '\u201C' + v.t + '\u201D';
+  $('#verseRef').textContent = '— ' + v.r;
+  const msLeft = VERSE_MS - (Date.now() % VERSE_MS);
+  const h = Math.floor(msLeft/3600000), m = Math.floor(msLeft%3600000/60000);
+  $('#verseTimer').textContent = `New verse in ${h}h ${m}m`;
+}
 const COLORS = ['#2f9e44','#2b8fc4','#9c5fd3','#e0832f','#d6336c','#0ca678'];
 const LS_KEY = 'jct50-v1';
 
@@ -299,9 +349,8 @@ const store = {
   load(){
     try{ this.data = JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ this.data=null; }
     if(!this.data || !Array.isArray(this.data.profiles)){
-      this.data = { profiles:[{id:uid(), name:'Pat', color:COLORS[0], challenges:[50]},
-                              {id:uid(), name:'Husband', color:COLORS[1], challenges:[20,50,100]}],
-        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, v:2 };
+      this.data = { profiles:[{id:uid(), name:'Pat', color:COLORS[0], challenges:[50]}],
+        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, v:3 };
     }
     if(!this.data.v){
       this.data.v = 2;
@@ -312,6 +361,17 @@ const store = {
       }
       if(this.data.profiles.length===1)
         this.data.profiles.push({id:uid(), name:'Husband', color:COLORS[1], challenges:[20,50,100]});
+    }
+    if(this.data.v < 3){
+      // Solo tracker: drop any auto-added "Husband" profile and its entries
+      const gone = new Set(this.data.profiles.filter(p=>p.name && p.name.toLowerCase()==='husband').map(p=>p.id));
+      if(gone.size){
+        this.data.profiles = this.data.profiles.filter(p=>!gone.has(p.id));
+        this.data.entries = (this.data.entries||[]).filter(e=>!gone.has(e.profileId));
+        for(const k of Object.keys(this.data.selected||{})) if(gone.has(k)) delete this.data.selected[k];
+      }
+      this.data.v = 3;
+      this.save();
     }
     if(!this.data.milestones) this.data.milestones = {};
     if(!this.data.supabase) this.data.supabase = {url:'',key:''};
@@ -412,7 +472,7 @@ function activeGoal(){
   return en.includes(sel) ? sel : en[0];
 }
 function render(){
-  renderTabs(); renderGoalChips(); renderMascot(); renderNudge(); renderStats(); renderCoach(); renderBubbles(); renderLeaderboard(); renderEntries(); renderProfileList();
+  renderTabs(); renderGoalChips(); renderMascot(); renderNudge(); renderVerse(); renderStats(); renderCoach(); renderBubbles(); renderLeaderboard(); renderEntries(); renderProfileList();
 }
 function renderTabs(){
   const el=$('#tabs');
@@ -736,6 +796,7 @@ function init(){
   };
   initSupabase();
   render();
+  setInterval(renderVerse, 60000);
   if(sb) pullFromCloud().then(render).catch(()=>{});
 }
 document.addEventListener('DOMContentLoaded', init);

@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b8fc4">
+<title>October Challenge Tracker</title>
+<style>
+  :root{
+    --blue:#2b8fc4; --blue-dark:#1c6e9c; --green:#6fce62; --green-dark:#3fa34d;
+    --navy:#17324a; --gold:#c9a227; --bg:#f2f7fb; --card:#ffffff;
+    --muted:#6b7f90; --line:#e3edf3; --danger:#e5484d;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--navy); padding-bottom:96px;}
+  header.hero{background:linear-gradient(135deg,#7fb9d9 0%,#5aa9d6 35%,#6fce62 100%);
+    color:#fff; padding:28px 20px 22px; text-align:center; position:relative; overflow:hidden;}
+  header.hero h1{margin:0; font-size:30px; letter-spacing:.5px; font-weight:800; text-shadow:0 1px 2px rgba(0,0,0,.15);}
+  header.hero h1 .accent{color:#eafbe4;}
+  header.hero p{margin:6px 0 0; font-size:13px; letter-spacing:2px; opacity:.95; font-weight:600;}
+  header.hero .sub{margin-top:8px; font-size:13px; letter-spacing:.5px; opacity:.9; font-weight:400;}
+  main{max-width:560px; margin:0 auto; padding:0 14px;}
+  .card{background:var(--card); border-radius:16px; padding:16px; margin-top:14px;
+    box-shadow:0 2px 10px rgba(23,50,74,.07); border:1px solid var(--line);}
+  .card h2{margin:0 0 10px; font-size:15px; letter-spacing:.4px; color:var(--navy);}
+
+  /* profile tabs */
+  .tabs{display:flex; gap:8px; margin-top:14px; overflow-x:auto; padding-bottom:2px;}
+  .tab{flex:1; min-width:120px; border:2px solid var(--line); background:#fff; border-radius:12px;
+    padding:10px 12px; cursor:pointer; text-align:left; font-family:inherit;}
+  .tab.active{border-color:var(--blue); background:#f0f8fd;}
+  .tab .nm{font-weight:700; font-size:15px; display:flex; align-items:center; gap:6px;}
+  .dot{width:10px; height:10px; border-radius:50%; display:inline-block;}
+  .tab .mi{font-size:12px; color:var(--muted); margin-top:2px;}
+
+  /* stats */
+  .big{font-size:44px; font-weight:800; line-height:1;}
+  .big small{font-size:16px; font-weight:600; color:var(--muted);}
+  .bar{height:12px; background:#e8f1f6; border-radius:99px; margin:12px 0 4px; overflow:hidden;}
+  .bar > div{height:100%; border-radius:99px; background:linear-gradient(90deg,var(--blue),var(--green));
+    transition:width .5s ease;}
+  .pct{font-size:13px; color:var(--muted); font-weight:600;}
+  .statgrid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px;}
+  .stat{background:#f6fafd; border:1px solid var(--line); border-radius:12px; padding:10px 12px;}
+  .stat .v{font-size:20px; font-weight:800;}
+  .stat .l{font-size:11.5px; color:var(--muted); margin-top:2px; letter-spacing:.3px;}
+
+  /* bubbles */
+  .bubbles{display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-top:6px;}
+  .bub{aspect-ratio:1; border-radius:50%; border:2px solid #d8b93c; color:#b8932a; background:#fffdf4;
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px;}
+  .bub.done{border-color:transparent; color:#fff; background:linear-gradient(135deg,var(--blue),var(--green));
+    box-shadow:0 2px 6px rgba(43,143,196,.35);}
+  .bub.done.c20{background:linear-gradient(135deg,#6fce62,#2f9e44); box-shadow:0 2px 6px rgba(63,163,77,.35);}
+  .bub.done.c50{background:linear-gradient(135deg,#5aa9d6,#6fce62); box-shadow:0 2px 6px rgba(43,143,196,.35);}
+  .bub.done.c100{background:linear-gradient(135deg,#ff8787,#c92a2a); box-shadow:0 2px 6px rgba(201,42,42,.35);}
+  .bubbles.c20{grid-template-columns:repeat(5,1fr);}
+  .bubbles.c100{grid-template-columns:repeat(10,1fr); gap:6px;}
+  .bubbles.c100 .bub{font-size:11px; border-width:1.5px;}
+  .gchip .dot{margin-right:2px;}
+  .gchip.active.c20{border-color:#3fa34d; background:#e9f7ec; color:#2f7a3a;}
+  .gchip.active.c50{border-color:var(--blue); background:#eaf5fc; color:var(--blue-dark);}
+  .gchip.active.c100{border-color:#e5484d; background:#fdecec; color:#b3272e;}
+  .cbtn{border:2px solid var(--line); background:#fff; border-radius:99px; min-width:44px; padding:5px 10px;
+    font-size:12.5px; font-weight:800; cursor:pointer; font-family:inherit; color:var(--muted);}
+  .cbtn.on.c20{border-color:#3fa34d; background:#e9f7ec; color:#2f7a3a;}
+  .cbtn.on.c50{border-color:var(--blue); background:#eaf5fc; color:var(--blue-dark);}
+  .cbtn.on.c100{border-color:#e5484d; background:#fdecec; color:#b3272e;}
+  .chrow{display:flex; gap:6px; align-items:center; margin-top:6px;}
+  .chrow .cl{font-size:11.5px; color:var(--muted); font-weight:700; margin-right:2px;}
+  .nudge{display:none; background:#fff8e1; border:1px solid #ffe082; color:#7a5c00; border-radius:12px;
+    padding:10px 14px; margin-top:10px; font-size:13.5px; font-weight:600; line-height:1.45;}
+  .nudge a{color:#b3272e; font-weight:800;}
+  .coach-line{font-size:14px; line-height:1.55; margin:6px 0;}
+  .coach-line:first-child{margin-top:0;} .coach-line:last-child{margin-bottom:0;}
+  .coach-big{font-size:15px; font-weight:800;}
+  .coach-ok{color:#2f7a3a;} .coach-warn{color:#b3272e;} .coach-mid{color:#8a6d00;}
+  .track{margin-top:6px; height:58px; position:relative; overflow:hidden;}
+  .mascot{font-size:46px; position:absolute; left:50%; top:2px; transform:translateX(-50%);
+    animation:bob .9s ease-in-out infinite; filter:drop-shadow(0 4px 3px rgba(0,0,0,.18));}
+  @keyframes bob{0%,100%{transform:translateX(-50%) translateY(0) rotate(-5deg);}50%{transform:translateX(-50%) translateY(-9px) rotate(5deg);}}
+  .mascot.m-run{animation-duration:.45s;}
+  .mascot.m-cycle{animation-duration:.6s;}
+  .mascot.m-hike{animation-duration:1.1s;}
+  .mascot.m-swim{animation:sway 1.7s ease-in-out infinite;}
+  @keyframes sway{0%,100%{transform:translateX(-60%) rotate(-10deg);}50%{transform:translateX(-40%) rotate(10deg);}}
+  .mascot.m-row{animation:rowm 1.3s ease-in-out infinite;}
+  @keyframes rowm{0%,100%{transform:translateX(-50%) translateY(0) rotate(-12deg);}50%{transform:translateX(-50%) translateY(-5px) rotate(12deg);}}
+  .complete-badge{background:linear-gradient(135deg,var(--gold),#f0c94a); color:#5c430a; font-weight:800;
+    text-align:center; border-radius:12px; padding:10px; margin-top:12px;}
+
+  /* form */
+  label.fl{display:block; font-size:12.5px; font-weight:700; color:var(--muted); margin:12px 0 6px; letter-spacing:.3px;}
+  label.fl:first-child{margin-top:0;}
+  input[type=date],input[type=number],input[type=text],input[type=url],input[type=password],textarea{
+    width:100%; padding:12px; font-size:16px; border:2px solid var(--line); border-radius:12px; font-family:inherit;
+    color:var(--navy); background:#fff;}
+  input:focus,textarea:focus{outline:none; border-color:var(--blue);}
+  .chips{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{border:2px solid var(--line); background:#fff; border-radius:99px; padding:9px 14px; font-size:14px;
+    font-weight:600; cursor:pointer; font-family:inherit; color:var(--navy);}
+  .chip.active{border-color:var(--blue); background:#eaf5fc; color:var(--blue-dark);}
+  .milesrow{display:flex; gap:8px; align-items:stretch;}
+  .stepper{width:52px; border:2px solid var(--line); background:#fff; border-radius:12px; font-size:22px;
+    cursor:pointer; color:var(--blue-dark); font-weight:700;}
+  .btn{width:100%; margin-top:14px; padding:14px; border:none; border-radius:14px; font-size:16px; font-weight:800;
+    color:#fff; background:linear-gradient(135deg,var(--blue),var(--green-dark)); cursor:pointer; font-family:inherit;}
+  .btn:active{transform:scale(.98);}
+  .btn.secondary{background:#fff; color:var(--blue-dark); border:2px solid var(--blue); margin-top:8px;}
+  .btn.danger{background:#fff; color:var(--danger); border:2px solid var(--danger);}
+
+  /* leaderboard */
+  .lbrow{margin-bottom:12px;}
+  .lbrow:last-child{margin-bottom:0;}
+  .lbrow .top{display:flex; justify-content:space-between; font-size:14px; font-weight:700; margin-bottom:6px;}
+  .lbrow .top .sc{color:var(--muted); font-weight:600;}
+  .ahead{font-size:12px; color:var(--green-dark); font-weight:700; margin-top:4px;}
+
+  /* entries */
+  .entry{display:flex; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);}
+  .entry:last-child{border-bottom:none;}
+  .eicon{font-size:22px; width:40px; height:40px; border-radius:12px; background:#f0f8fd;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .einfo{flex:1; min-width:0;}
+  .einfo .t{font-weight:700; font-size:14.5px;}
+  .einfo .d{font-size:12px; color:var(--muted);}
+  .emi{font-weight:800; font-size:15px; white-space:nowrap;}
+  .eact{background:none; border:none; font-size:16px; cursor:pointer; padding:6px; color:var(--muted);}
+  .empty{color:var(--muted); font-size:14px; text-align:center; padding:18px 0;}
+
+  /* settings */
+  #settingsBtn{position:fixed; right:16px; bottom:16px; width:56px; height:56px; border-radius:50%;
+    border:none; background:var(--navy); color:#fff; font-size:24px; cursor:pointer;
+    box-shadow:0 4px 14px rgba(0,0,0,.25); z-index:40;}
+  .modal{position:fixed; inset:0; background:rgba(23,50,74,.5); display:none; z-index:50;
+    align-items:flex-end; justify-content:center;}
+  .modal.open{display:flex;}
+  .sheet{background:#fff; width:100%; max-width:560px; border-radius:20px 20px 0 0; padding:20px;
+    max-height:88vh; overflow-y:auto;}
+  .sheet h2{margin:0 0 4px; font-size:18px;}
+  .sheet h3{font-size:14px; margin:20px 0 8px; color:var(--navy);}
+  .sheet .hint{font-size:13px; color:var(--muted); margin:0 0 8px; line-height:1.45;}
+  .prow{display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line);}
+  .prow .nm{flex:1; font-weight:700;}
+  .prow button{border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 10px;
+    font-size:13px; cursor:pointer; font-family:inherit;}
+  .status{font-size:13px; margin-top:8px; font-weight:600;}
+  .status.ok{color:var(--green-dark);} .status.err{color:var(--danger);}
+  .closeRow{display:flex; justify-content:flex-end;}
+  .closeRow button{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);}
+
+  #toast{position:fixed; left:50%; bottom:84px; transform:translateX(-50%) translateY(20px); background:var(--navy);
+    color:#fff; padding:12px 18px; border-radius:12px; font-size:14px; font-weight:600; opacity:0;
+    transition:all .25s; pointer-events:none; z-index:60; max-width:90vw; text-align:center;}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  #confetti{position:fixed; inset:0; pointer-events:none; display:none; z-index:55;}
+  .foot{text-align:center; color:var(--muted); font-size:12px; margin-top:18px; line-height:1.6;}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>October <span class="accent">Challenge</span></h1>
+  <p>RUN · WALK · HIKE · CYCLE · SWIM · ROW</p>
+  <div class="sub">20 · 50 · 100 miles through October — one bubble = one mile</div>
+  <div class="track"><div id="mascot" class="mascot m-walk" role="img" aria-label="Walking">🚶</div></div>
+</header>
+
+<main>
+  <div class="tabs" id="tabs"></div>
+  <div class="chips" id="goalChips" style="margin-top:10px"></div>
+  <div class="nudge" id="nudge"></div>
+
+  <section class="card" id="statsCard">
+    <h2 id="statsTitle">Progress</h2>
+    <div class="big"><span id="totalMi">0</span> <small id="goalMi">/ 50 mi</small></div>
+    <div class="bar"><div id="barFill" style="width:0%"></div></div>
+    <div class="pct" id="pctTxt">0% complete</div>
+    <div class="statgrid">
+      <div class="stat"><div class="v" id="stRemain">50</div><div class="l">MILES TO GO</div></div>
+      <div class="stat"><div class="v" id="stPace">1.6</div><div class="l">MI / DAY NEEDED</div></div>
+      <div class="stat"><div class="v" id="stStreak">0</div><div class="l">DAY STREAK</div></div>
+      <div class="stat"><div class="v" id="stBest">0</div><div class="l">BEST DAY (MI)</div></div>
+    </div>
+    <div id="completeBadge"></div>
+  </section>
+
+  <section class="card" id="coachCard">
+    <h2>🎯 Game plan <span id="coachGoal" style="color:var(--muted);font-weight:600"></span></h2>
+    <div id="coach"></div>
+  </section>
+
+  <section class="card">
+    <h2>Mile bubbles</h2>
+    <div class="bubbles" id="bubbles"></div>
+  </section>
+
+  <section class="card" id="logCard">
+    <h2 id="formTitle">Log miles</h2>
+    <form id="logForm" onsubmit="return false;">
+      <label class="fl" for="fDate">Date</label>
+      <input type="date" id="fDate" min="2026-10-01" max="2026-10-31" required>
+      <label class="fl">Activity</label>
+      <div class="chips" id="actChips"></div>
+      <label class="fl" for="fMiles">Miles</label>
+      <div class="milesrow">
+        <button type="button" class="stepper" id="mMinus" aria-label="less">−</button>
+        <input type="number" id="fMiles" min="0.1" max="100" step="0.1" placeholder="e.g. 2.5" inputmode="decimal" required>
+        <button type="button" class="stepper" id="mPlus" aria-label="more">+</button>
+      </div>
+      <label class="fl" for="fNote">Note <span style="font-weight:400">(optional)</span></label>
+      <input type="text" id="fNote" placeholder="Morning walk at the park…" maxlength="120">
+      <button class="btn" id="submitBtn" type="submit">Add miles</button>
+      <button class="btn secondary" id="cancelEdit" type="button" style="display:none">Cancel edit</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2 id="lbTitle">Leaderboard</h2>
+    <div id="leaderboard"></div>
+    <button class="btn secondary" id="shareBtn" type="button">Copy progress summary</button>
+  </section>
+
+  <section class="card">
+    <h2>Recent entries</h2>
+    <div id="entries"></div>
+  </section>
+
+  <div class="foot">October Challenge · Oct 1–31, 2026<br>Upload your completed card by Nov 12</div>
+</main>
+
+<button id="settingsBtn" aria-label="Settings">⚙</button>
+
+<div class="modal" id="settingsModal">
+  <div class="sheet">
+    <div class="closeRow"><button id="closeSettings" aria-label="Close">✕</button></div>
+    <h2>Settings</h2>
+
+    <h3>Trackers</h3>
+    <p class="hint">Add the people doing the challenge (e.g. you and your husband). Each gets their own bubbles and log. Use the 20 / 50 / 100 buttons to pick which distances each person is doing.</p>
+    <div id="profileList"></div>
+    <button class="btn secondary" id="addProfile" type="button">+ Add tracker</button>
+
+    <h3>Cloud sync (Supabase)</h3>
+    <p class="hint">Optional. Connect Supabase so both phones share the same data. Run <b>supabase-schema.sql</b> in your Supabase SQL editor first, then paste your project URL and anon key here. They stay in this browser only.</p>
+    <label class="fl" for="sbUrl">Supabase URL</label>
+    <input type="url" id="sbUrl" placeholder="https://xyzcompany.supabase.co" autocomplete="off">
+    <label class="fl" for="sbKey">Anon key</label>
+    <input type="password" id="sbKey" placeholder="eyJhbGciOi…" autocomplete="off">
+    <button class="btn" id="cloudConnect" type="button">Connect &amp; sync</button>
+    <button class="btn secondary" id="cloudRefresh" type="button" style="display:none">Refresh from cloud</button>
+    <button class="btn secondary" id="cloudDisconnect" type="button" style="display:none">Disconnect</button>
+    <div class="status" id="cloudStatus"></div>
+
+    <h3>Data</h3>
+    <button class="btn danger" id="wipeData" type="button">Erase all local data</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<canvas id="confetti"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const CHALLENGES = {
+  20:  {miles:20,  label:'20-Mile',  css:'c20',  solid:'#3fa34d', grad:'linear-gradient(90deg,#6fce62,#2f9e44)'},
+  50:  {miles:50,  label:'50-Mile',  css:'c50',  solid:'#2b8fc4', grad:'linear-gradient(90deg,#5aa9d6,#6fce62)'},
+  100: {miles:100, label:'100-Mile', css:'c100', solid:'#e5484d', grad:'linear-gradient(90deg,#ff8787,#c92a2a)'}
+};
+const ACTIVITIES = {
+  run:  {label:'Run',  icon:'🏃'},
+  walk: {label:'Walk', icon:'🚶'},
+  hike: {label:'Hike', icon:'🥾'},
+  cycle:{label:'Cycle',icon:'🚴'},
+  swim: {label:'Swim', icon:'🏊'},
+  row:  {label:'Row',  icon:'🚣'}
+};
+const COLORS = ['#2f9e44','#2b8fc4','#9c5fd3','#e0832f','#d6336c','#0ca678'];
+const LS_KEY = 'jct50-v1';
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function dateStr(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function inChallenge(ds){ return ds >= '2026-10-01' && ds <= '2026-10-31'; }
+function todayStr(){ return dateStr(new Date()); }
+function fmt(n){ return (Math.round(n*10)/10).toString(); }
+function prettyDate(ds){
+  const [y,m,d] = ds.split('-').map(Number);
+  return new Date(y, m-1, d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- store ---------- */
+const store = {
+  data:null,
+  load(){
+    try{ this.data = JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ this.data=null; }
+    if(!this.data || !Array.isArray(this.data.profiles)){
+      this.data = { profiles:[{id:uid(), name:'Pat', color:COLORS[0], challenges:[50]},
+                              {id:uid(), name:'Husband', color:COLORS[1], challenges:[20,50,100]}],
+        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, v:2 };
+    }
+    if(!this.data.v){
+      this.data.v = 2;
+      for(const p of this.data.profiles){
+        if(!Array.isArray(p.challenges) || !p.challenges.length) p.challenges=[50];
+        p.challenges = p.challenges.filter(g=>CHALLENGES[g]);
+        if(!p.challenges.length) p.challenges=[50];
+      }
+      if(this.data.profiles.length===1)
+        this.data.profiles.push({id:uid(), name:'Husband', color:COLORS[1], challenges:[20,50,100]});
+    }
+    if(!this.data.milestones) this.data.milestones = {};
+    if(!this.data.supabase) this.data.supabase = {url:'',key:''};
+    if(!this.data.selected) this.data.selected = {};
+    if(!this.data.activeProfileId || !this.data.profiles.find(p=>p.id===this.data.activeProfileId))
+      this.data.activeProfileId = this.data.profiles.length ? this.data.profiles[0].id : null;
+  },
+  save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(this.data)); }catch(e){} }
+};
+const activeProfile = () => store.data.profiles.find(p=>p.id===store.data.activeProfileId);
+const entriesFor = pid => store.data.entries.filter(e=>e.profileId===pid && inChallenge(e.date));
+const totalFor = pid => entriesFor(pid).reduce((s,e)=>s+Number(e.miles),0);
+// Miles are counted once and allocated across enrolled challenges in ascending
+// order: the first 20 mi fill the 20-mile challenge, the next 50 fill the
+// 50-mile, then the 100-mile. So 20+50+100 needs 170 real miles.
+function allocatedFor(pid, goal){
+  const p = store.data.profiles.find(x=>x.id===pid); if(!p) return 0;
+  let remaining = totalFor(pid);
+  for(const g of enrolled(p)){
+    const a = Math.min(Math.max(0, remaining), g);
+    if(g===goal) return a;
+    remaining -= a;
+  }
+  return 0;
+}
+
+/* ---------- supabase ---------- */
+let sb = null;
+function initSupabase(){
+  sb = null;
+  const cfg = store.data.supabase;
+  if(cfg && cfg.url && cfg.key && window.supabase){
+    try{ sb = window.supabase.createClient(cfg.url, cfg.key); }catch(e){ sb=null; }
+  }
+  updateCloudUI();
+}
+async function pullFromCloud(){
+  if(!sb) return;
+  const {data:profs, error:e1} = await sb.from('challenge_profiles').select('*');
+  if(e1) throw e1;
+  const {data:ents, error:e2} = await sb.from('challenge_entries').select('*');
+  if(e2) throw e2;
+  if(profs.length===0 && store.data.profiles.length>0){
+    for(const p of store.data.profiles)
+      await sb.from('challenge_profiles').insert({id:p.id, name:p.name, color:p.color, challenges:enrolled(p)});
+    for(const e of store.data.entries)
+      await sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:e.note||null});
+  } else {
+    store.data.profiles = profs.map(p=>({id:p.id, name:p.name, color:p.color||COLORS[0],
+      challenges:Array.isArray(p.challenges)&&p.challenges.length?p.challenges.filter(g=>CHALLENGES[g]):[50]}));
+    store.data.entries = ents.map(e=>({id:e.id, profileId:e.profile_id, date:e.entry_date,
+      activity:e.activity, miles:Number(e.miles), note:e.note||''}));
+    if(!store.data.profiles.find(p=>p.id===store.data.activeProfileId))
+      store.data.activeProfileId = store.data.profiles.length ? store.data.profiles[0].id : null;
+  }
+  store.save();
+}
+async function cloudOp(fn, failMsg){
+  if(!sb) return;
+  try{ await fn(); }
+  catch(e){ toast(failMsg + ' — kept on this device only'); }
+}
+
+/* ---------- toast & confetti ---------- */
+let toastT=null;
+function toast(msg){
+  const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function confetti(){
+  const c=$('#confetti'), ctx=c.getContext('2d');
+  if(!ctx) return;
+  c.width=innerWidth; c.height=innerHeight; c.style.display='block';
+  const cols=['#2b8fc4','#6fce62','#ffd43b','#ff8787','#c9a227'];
+  const ps=Array.from({length:90},()=>({x:Math.random()*c.width, y:-20-Math.random()*c.height*.35,
+    s:4+Math.random()*6, c:cols[Math.floor(Math.random()*cols.length)],
+    vy:2+Math.random()*3.2, vx:-1.2+Math.random()*2.4, r:Math.random()*Math.PI}));
+  let f=0;
+  (function tick(){
+    ctx.clearRect(0,0,c.width,c.height);
+    for(const p of ps){ p.x+=p.vx; p.y+=p.vy; p.r+=.12;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r); ctx.fillStyle=p.c;
+      ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.62); ctx.restore(); }
+    if(++f<170) requestAnimationFrame(tick); else c.style.display='none';
+  })();
+}
+
+/* ---------- render ---------- */
+let selectedActivity='walk', editingId=null;
+
+const enrolled = p => {
+  const list = Array.isArray(p.challenges) ? p.challenges.filter(g=>CHALLENGES[g]) : [];
+  return (list.length?list:[50]).sort((a,b)=>a-b);
+};
+function activeGoal(){
+  const p=activeProfile(); if(!p) return 50;
+  const en=enrolled(p), sel=store.data.selected[p.id];
+  return en.includes(sel) ? sel : en[0];
+}
+function render(){
+  renderTabs(); renderGoalChips(); renderMascot(); renderNudge(); renderStats(); renderCoach(); renderBubbles(); renderLeaderboard(); renderEntries(); renderProfileList();
+}
+function renderTabs(){
+  const el=$('#tabs');
+  el.innerHTML = store.data.profiles.map(p=>{
+    const t=totalFor(p.id);
+    return `<button class="tab${p.id===store.data.activeProfileId?' active':''}" data-pid="${p.id}">
+      <div class="nm"><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span>${esc(p.name)}</div>
+      <div class="mi">${fmt(t)} mi total</div></button>`;
+  }).join('') || `<div class="empty">Add a tracker in Settings ⚙</div>`;
+  el.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{ store.data.activeProfileId=b.dataset.pid; store.save(); render(); });
+}
+function renderGoalChips(){
+  const p=activeProfile(), el=$('#goalChips');
+  if(!p){ el.innerHTML=''; return; }
+  const g=activeGoal();
+  el.innerHTML = enrolled(p).map(x=>{
+    const c=CHALLENGES[x];
+    return `<button type="button" class="chip gchip ${c.css}${x===g?' active':''}" data-goal="${x}"><span class="dot" style="background:${c.solid}"></span>${c.label}</button>`;
+  }).join('');
+  el.querySelectorAll('[data-goal]').forEach(b=>b.onclick=()=>{
+    store.data.selected[p.id]=Number(b.dataset.goal); store.save(); render();
+  });
+}
+function renderNudge(){
+  const p=activeProfile(), el=$('#nudge');
+  if(!p){ el.style.display='none'; return; }
+  const loggedToday=entriesFor(p.id).some(e=>e.date===todayStr());
+  const hr=new Date().getHours();
+  if(!loggedToday && hr>=12){
+    el.style.display='block';
+    el.innerHTML=`⏰ No miles logged yet today, ${esc(p.name)} — even a 1-mile walk keeps the streak alive. <a href="#logCard">Log them now</a>.`;
+  } else el.style.display='none';
+}
+function renderCoach(){
+  const p=activeProfile(), g=activeGoal(), CH=CHALLENGES[g];
+  const box=$('#coach');
+  if(!p){ box.innerHTML=''; $('#coachGoal').textContent=''; return; }
+  $('#coachGoal').textContent='· '+CH.label;
+  const t=allocatedFor(p.id,g);
+  const now=new Date();
+  const inOct=now.getFullYear()===2026 && now.getMonth()===9;
+  const day=inOct?now.getDate():0;
+  const dl=daysLeft();
+  const remaining=Math.max(0, g-t);
+  if(t>=g){
+    box.innerHTML=`<div class="coach-line coach-big coach-ok">Challenge complete — ${g} miles done! Time to celebrate. 🎉</div>`;
+    return;
+  }
+  if(!inOct || dl<=0){
+    box.innerHTML=`<div class="coach-line">The challenge window has ended.</div>`;
+    return;
+  }
+  const needed=remaining/dl;
+  const expected=g*day/31, diff=t-expected;
+  let verdict, cls;
+  if(diff>=0.5){ verdict=`You're <b>${fmt(diff)} mi ahead of pace</b> — nice cushion.`; cls='coach-ok'; }
+  else if(diff<=-0.5){ verdict=`You're <b>${fmt(-diff)} mi behind pace</b>.`; cls='coach-warn'; }
+  else { verdict=`You're right <b>on pace</b>.`; cls='coach-mid'; }
+  const en=enrolled(p);
+  box.innerHTML=`
+    <div class="coach-line coach-big ${cls}">${verdict}</div>
+    <div class="coach-line">To finish the ${g}-mile by Oct 31: average <b>${fmt(needed)} mi/day</b> (about <b>${fmt(needed*7)} mi/week</b>). That's ${fmt(remaining)} miles over ${dl} day${dl===1?'':'s'}.</div>
+    ${diff<=-2?`<div class="coach-line">Catch-up idea: one <b>${fmt(Math.min(remaining, needed+2))}-mile</b> session this week would erase most of the gap.</div>`:''}
+    ${en.length>1?`<div class="coach-line" style="color:var(--muted);font-size:13px">Every mile counts once — the first ${en[0]} fill the ${en[0]}-mile, then the rest flow to the next challenge.</div>`:''}`;
+}
+function renderMascot(){
+  const p=activeProfile();
+  let act=selectedActivity;
+  if(p){
+    const es=entriesFor(p.id).sort((a,b)=> b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+    if(es.length && ACTIVITIES[es[0].activity]) act=es[0].activity;
+  }
+  const m=$('#mascot'), a=ACTIVITIES[act]||ACTIVITIES.walk;
+  m.textContent=a.icon;
+  m.className='mascot m-'+act;
+  m.setAttribute('aria-label', a.label);
+}
+function daysLeft(){
+  const n=new Date();
+  if(n.getFullYear()<2026 || (n.getFullYear()===2026 && n.getMonth()<9)) return 31;
+  if(n.getFullYear()>2026 || n.getMonth()>9) return 0;
+  return Math.max(0, 31 - n.getDate() + 1);
+}
+function streakFor(pid){
+  const days=new Set(entriesFor(pid).filter(e=>Number(e.miles)>0).map(e=>e.date));
+  let d=new Date(), s=0;
+  if(!days.has(dateStr(d))) d.setDate(d.getDate()-1);
+  while(days.has(dateStr(d))){ s++; d.setDate(d.getDate()-1); }
+  return s;
+}
+function bestDayFor(pid){
+  const by={};
+  for(const e of entriesFor(pid)) by[e.date]=(by[e.date]||0)+Number(e.miles);
+  return Math.max(0,...Object.values(by));
+}
+function renderStats(){
+  const p=activeProfile(), g=activeGoal(), CH=CHALLENGES[g];
+  $('#statsTitle').textContent = p ? `${p.name}'s progress · ${CH.label}` : 'Progress';
+  const t = p ? allocatedFor(p.id, g) : 0;
+  const pct = Math.min(100, t/g*100);
+  $('#totalMi').textContent = fmt(t);
+  $('#goalMi').textContent = '/ '+g+' mi';
+  const bf=$('#barFill'); bf.style.width=pct+'%'; bf.style.background=CH.grad;
+  $('#pctTxt').textContent = Math.round(pct)+'% complete';
+  $('#stRemain').textContent = fmt(Math.max(0, g-t));
+  const dl = daysLeft();
+  $('#stPace').textContent = dl>0 ? fmt(Math.max(0,g-t)/dl) : '—';
+  $('#stStreak').textContent = p ? streakFor(p.id) : 0;
+  $('#stBest').textContent = p ? fmt(bestDayFor(p.id)) : 0;
+  $('#completeBadge').innerHTML = t>=g
+    ? `<div class="complete-badge">🎉 ${g} MILES — CHALLENGE COMPLETE! 🎉</div>` : '';
+  if(p){
+    const marks=[{k:'half', at:g/2, msg:`${fmt(g/2)} miles — halfway there!`},
+                 {k:'full', at:g,   msg:`${g} miles! Challenge complete!`}];
+    for(const m of marks){
+      const key=p.id+':'+g+':'+m.k;
+      if(t>=m.at && !store.data.milestones[key]){
+        store.data.milestones[key]=true; store.save(); confetti(); toast(m.msg);
+      }
+    }
+  }
+}
+function renderBubbles(){
+  const p=activeProfile(), g=activeGoal(), CH=CHALLENGES[g];
+  const t=p?allocatedFor(p.id,g):0;
+  const whole=Math.floor(t), frac=t-whole;
+  $('#bubbles').className='bubbles '+CH.css;
+  let html='';
+  for(let i=1;i<=g;i++){
+    if(i<=whole) html+=`<div class="bub done ${CH.css}">${i}</div>`;
+    else if(i===whole+1 && frac>0.009)
+      html+=`<div class="bub" style="background:linear-gradient(to top, #bfe3f5 ${Math.round(frac*100)}%, #fffdf4 ${Math.round(frac*100)}%)">${i}</div>`;
+    else html+=`<div class="bub">${i}</div>`;
+  }
+  $('#bubbles').innerHTML=html;
+}
+function renderLeaderboard(){
+  const g=activeGoal(), CH=CHALLENGES[g];
+  $('#lbTitle').textContent='Leaderboard · '+CH.label;
+  const rows=store.data.profiles.filter(p=>enrolled(p).includes(g))
+    .sort((a,b)=>allocatedFor(b.id,g)-allocatedFor(a.id,g));
+  const top=rows.length?allocatedFor(rows[0].id,g):0;
+  $('#leaderboard').innerHTML = rows.map((p,i)=>{
+    const t=allocatedFor(p.id,g), pct=Math.min(100,t/g*100);
+    const gap = i===0 ? '' : `<div class="ahead">${fmt(top-t)} mi behind ${esc(rows[0].name)}</div>`;
+    return `<div class="lbrow"><div class="top"><span><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span> ${esc(p.name)}</span>
+      <span class="sc">${fmt(t)} mi · ${Math.round(pct)}%</span></div>
+      <div class="bar" style="margin:0"><div style="width:${pct}%;background:${CH.grad}"></div></div>${gap}</div>`;
+  }).join('') || `<div class="empty">No trackers in this challenge yet.</div>`;
+}
+function renderEntries(){
+  const p=activeProfile();
+  const list = p ? entriesFor(p.id).sort((a,b)=> b.date.localeCompare(a.date)) : [];
+  $('#entries').innerHTML = list.slice(0,30).map(e=>{
+    const a=ACTIVITIES[e.activity]||{label:e.activity,icon:'•'};
+    return `<div class="entry"><div class="eicon">${a.icon}</div>
+      <div class="einfo"><div class="t">${a.label}${e.note?` — ${esc(e.note)}`:''}</div>
+      <div class="d">${prettyDate(e.date)}</div></div>
+      <div class="emi">${fmt(e.miles)} mi</div>
+      <button class="eact" data-edit="${e.id}" aria-label="Edit">✎</button>
+      <button class="eact" data-del="${e.id}" aria-label="Delete">🗑</button></div>`;
+  }).join('') || `<div class="empty">No miles logged yet — add your first one above.</div>`;
+  $('#entries').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteEntry(b.dataset.del));
+  $('#entries').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>startEdit(b.dataset.edit));
+}
+function renderProfileList(){
+  $('#profileList').innerHTML = store.data.profiles.map((p,i)=>{
+    const en=enrolled(p);
+    const ch=[20,50,100].map(x=>{
+      const c=CHALLENGES[x], on=en.includes(x);
+      return `<button class="cbtn ${c.css}${on?' on':''}" data-ch="${p.id}:${x}">${x}</button>`;
+    }).join('');
+    return `<div style="border-bottom:1px solid var(--line);padding:10px 0">
+      <div class="prow" style="border-bottom:none;padding:0 0 2px"><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span>
+      <span class="nm">${esc(p.name)}</span>
+      <button data-rn="${p.id}">Rename</button>
+      ${store.data.profiles.length>1?`<button data-rm="${p.id}">Remove</button>`:''}</div>
+      <div class="chrow"><span class="cl">CHALLENGES</span>${ch}</div></div>`;
+  }).join('');
+  $('#profileList').querySelectorAll('[data-rn]').forEach(b=>b.onclick=()=>{
+    const p=store.data.profiles.find(x=>x.id===b.dataset.rn);
+    const n=prompt('Name for this tracker:', p.name);
+    if(n && n.trim()){ p.name=n.trim().slice(0,24); store.save(); render();
+      cloudOp(()=>sb.from('challenge_profiles').update({name:p.name}).eq('id',p.id), 'Rename not synced'); }
+  });
+  $('#profileList').querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{
+    const p=store.data.profiles.find(x=>x.id===b.dataset.rm);
+    if(!confirm(`Remove ${p.name} and all their entries?`)) return;
+    store.data.entries=store.data.entries.filter(e=>e.profileId!==p.id);
+    store.data.profiles=store.data.profiles.filter(x=>x.id!==p.id);
+    if(store.data.activeProfileId===p.id) store.data.activeProfileId=store.data.profiles[0].id;
+    store.save(); render();
+    cloudOp(()=>sb.from('challenge_profiles').delete().eq('id',p.id), 'Remove not synced');
+  });
+  $('#profileList').querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{
+    const parts=b.dataset.ch.split(':'), pid=parts[0], gx=Number(parts[1]);
+    const p=store.data.profiles.find(x=>x.id===pid); if(!p) return;
+    let en=enrolled(p);
+    if(en.includes(gx)){
+      if(en.length===1){ toast('Keep at least one challenge'); return; }
+      en=en.filter(y=>y!==gx);
+    } else en=[...en,gx].sort((a,b)=>a-b);
+    p.challenges=en; store.save(); render();
+    cloudOp(()=>sb.from('challenge_profiles').update({challenges:en}).eq('id',p.id), 'Challenges not synced');
+  });
+}
+
+/* ---------- form ---------- */
+function renderChips(){
+  $('#actChips').innerHTML = Object.entries(ACTIVITIES).map(([k,a])=>
+    `<button type="button" class="chip${k===selectedActivity?' active':''}" data-act="${k}">${a.icon} ${a.label}</button>`).join('');
+  $('#actChips').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+    selectedActivity=c.dataset.act; renderChips(); renderMascot();
+  });
+}
+function startEdit(id){
+  const e=store.data.entries.find(x=>x.id===id); if(!e) return;
+  editingId=id; selectedActivity=e.activity;
+  $('#fDate').value=e.date; $('#fMiles').value=e.miles; $('#fNote').value=e.note||'';
+  $('#formTitle').textContent='Edit entry'; $('#submitBtn').textContent='Save changes';
+  $('#cancelEdit').style.display='block'; renderChips();
+  $('#logCard').scrollIntoView({behavior:'smooth'});
+}
+function cancelEdit(){
+  editingId=null; $('#logForm').reset(); $('#fDate').value=todayStr();
+  $('#formTitle').textContent='Log miles'; $('#submitBtn').textContent='Add miles';
+  $('#cancelEdit').style.display='none';
+}
+async function submitForm(){
+  const p=activeProfile();
+  if(!p){ toast('Add a tracker in Settings first'); return; }
+  const date=$('#fDate').value, miles=parseFloat($('#fMiles').value), note=$('#fNote').value.trim();
+  if(!date || !inChallenge(date)){ toast('Pick a date in October 2026'); return; }
+  if(!(miles>0) || miles>100){ toast('Enter miles between 0.1 and 100'); return; }
+  if(editingId){
+    const e=store.data.entries.find(x=>x.id===editingId);
+    Object.assign(e,{date, activity:selectedActivity, miles, note});
+    store.save(); render(); cancelEdit(); toast('Entry updated');
+    cloudOp(()=>sb.from('challenge_entries').update({entry_date:date, activity:selectedActivity, miles, note:note||null}).eq('id',e.id), 'Edit not synced');
+  } else {
+    const e={id:uid(), profileId:p.id, date, activity:selectedActivity, miles, note};
+    store.data.entries.push(e); store.save(); render();
+    $('#fMiles').value=''; $('#fNote').value='';
+    toast(`${fmt(miles)} mi ${ACTIVITIES[selectedActivity].label.toLowerCase()} logged`);
+    cloudOp(()=>sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:e.note||null}), 'Add not synced');
+  }
+}
+async function deleteEntry(id){
+  if(!confirm('Delete this entry?')) return;
+  store.data.entries=store.data.entries.filter(e=>e.id!==id);
+  store.save(); render(); toast('Entry deleted');
+  cloudOp(()=>sb.from('challenge_entries').delete().eq('id',id), 'Delete not synced');
+}
+
+/* ---------- settings / cloud ---------- */
+function updateCloudUI(){
+  const on=!!sb;
+  $('#cloudRefresh').style.display=on?'block':'none';
+  $('#cloudDisconnect').style.display=on?'block':'none';
+  const st=$('#cloudStatus');
+  if(on){ st.textContent='● Connected — changes sync to Supabase'; st.className='status ok'; }
+  else if(store.data.supabase.url){ st.textContent='○ Not connected'; st.className='status'; }
+  else { st.textContent=''; st.className='status'; }
+}
+async function connectCloud(){
+  const url=$('#sbUrl').value.trim().replace(/\/$/,''), key=$('#sbKey').value.trim();
+  if(!url||!key){ toast('Enter your Supabase URL and anon key'); return; }
+  if(!window.supabase){ toast('Supabase library failed to load — check connection'); return; }
+  $('#cloudStatus').textContent='Connecting…'; $('#cloudStatus').className='status';
+  try{
+    const t=window.supabase.createClient(url,key);
+    const {error}=await t.from('challenge_profiles').select('id',{head:true, count:'exact'});
+    if(error) throw error;
+    store.data.supabase={url,key}; store.save();
+    sb=t; await pullFromCloud(); render(); updateCloudUI();
+    toast('Connected — synced with cloud');
+  }catch(err){
+    $('#cloudStatus').textContent='Could not connect. Did you run supabase-schema.sql? '+(err.message||'');
+    $('#cloudStatus').className='status err';
+  }
+}
+
+/* ---------- init ---------- */
+function init(){
+  store.load();
+  $('#fDate').value=todayStr();
+  renderChips();
+  $('#submitBtn').onclick=submitForm;
+  $('#cancelEdit').onclick=cancelEdit;
+  $('#mMinus').onclick=()=>{ const f=$('#fMiles'); f.value=Math.max(0,(parseFloat(f.value)||0)-0.5).toFixed(1).replace(/\.0$/,''); };
+  $('#mPlus').onclick=()=>{ const f=$('#fMiles'); f.value=((parseFloat(f.value)||0)+0.5).toFixed(1).replace(/\.0$/,''); };
+  $('#shareBtn').onclick=()=>{
+    const lines=[];
+    for(const p of store.data.profiles) for(const g of enrolled(p)){
+      const t=allocatedFor(p.id,g);
+      lines.push(`${p.name} (${g}): ${fmt(t)}/${g} mi (${Math.round(Math.min(100,t/g*100))}%)`);
+    }
+    const txt=`October Challenge\n${lines.join('\n')}`;
+    if(navigator.clipboard) navigator.clipboard.writeText(txt).then(()=>toast('Summary copied')).catch(()=>toast('Copy failed'));
+    else toast('Clipboard not available');
+  };
+  $('#settingsBtn').onclick=()=>{ $('#sbUrl').value=store.data.supabase.url||''; $('#sbKey').value=store.data.supabase.key||'';
+    renderProfileList(); $('#settingsModal').classList.add('open'); };
+  $('#closeSettings').onclick=()=>$('#settingsModal').classList.remove('open');
+  $('#settingsModal').onclick=e=>{ if(e.target.id==='settingsModal') e.target.classList.remove('open'); };
+  $('#addProfile').onclick=()=>{
+    const n=prompt("Tracker's name:",'');
+    if(n && n.trim()){
+      const p={id:uid(), name:n.trim().slice(0,24), color:COLORS[store.data.profiles.length%COLORS.length], challenges:[50]};
+      store.data.profiles.push(p); store.data.activeProfileId=p.id; store.save(); render();
+      cloudOp(()=>sb.from('challenge_profiles').insert({id:p.id,name:p.name,color:p.color,challenges:p.challenges}), 'Add not synced');
+    }
+  };
+  $('#cloudConnect').onclick=connectCloud;
+  $('#cloudRefresh').onclick=async()=>{ try{ await pullFromCloud(); render(); toast('Refreshed from cloud'); }
+    catch(e){ toast('Refresh failed: '+(e.message||e)); } };
+  $('#cloudDisconnect').onclick=()=>{ store.data.supabase={url:'',key:''}; store.save(); sb=null; updateCloudUI(); toast('Disconnected — using this device only'); };
+  $('#wipeData').onclick=()=>{
+    if(!confirm('Erase ALL local data (profiles + entries)? This cannot be undone.')) return;
+    localStorage.removeItem(LS_KEY); store.load(); initSupabase(); render(); toast('Local data erased');
+  };
+  initSupabase();
+  render();
+  if(sb) pullFromCloud().then(render).catch(()=>{});
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

@@ -9,7 +9,7 @@
   :root{
     --blue:#2b8fc4; --blue-dark:#1c6e9c; --green:#6fce62; --green-dark:#3fa34d;
     --navy:#17324a; --gold:#c9a227; --bg:#f2f7fb; --card:#ffffff;
-    --muted:#6b7f90; --line:#e3edf3; --danger:#e5484d;
+    --muted:#5b7183; --line:#e3edf3; --danger:#e5484d;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -50,7 +50,7 @@
   .gchip.active.c20{border-color:#3fa34d; background:#e9f7ec; color:#2f7a3a;}
   .gchip.active.c50{border-color:var(--blue); background:#eaf5fc; color:var(--blue-dark);}
   .gchip.active.c100{border-color:#e5484d; background:#fdecec; color:#b3272e;}
-  .cbtn{border:2px solid var(--line); background:#fff; border-radius:99px; min-width:44px; padding:5px 10px;
+  .cbtn{border:2px solid var(--line); background:#fff; border-radius:99px; min-width:44px; padding:10px 14px;
     font-size:12.5px; font-weight:800; cursor:pointer; font-family:inherit; color:var(--muted);}
   .cbtn.on.c20{border-color:#3fa34d; background:#e9f7ec; color:#2f7a3a;}
   .cbtn.on.c50{border-color:var(--blue); background:#eaf5fc; color:var(--blue-dark);}
@@ -219,17 +219,6 @@
     <div id="completeBadge"></div>
   </section>
 
-  <section class="card" id="coachCard">
-    <h2>🎯 Game plan <span id="coachGoal" style="color:var(--muted);font-weight:600"></span></h2>
-    <div id="coach"></div>
-  </section>
-
-  <section class="card" id="bubblesCard">
-    <h2>Mile bubbles</h2>
-    <p class="hint" style="margin:0 0 2px">Tap a bubble to log miles up to that number.</p>
-    <div class="bubbles" id="bubbles"></div>
-  </section>
-
   <section class="card" id="logCard">
     <h2 id="formTitle">Log miles</h2>
     <form id="logForm" onsubmit="return false;">
@@ -248,6 +237,17 @@
       <button class="btn" id="submitBtn" type="submit">Add miles</button>
       <button class="btn secondary" id="cancelEdit" type="button" style="display:none">Cancel edit</button>
     </form>
+  </section>
+
+  <section class="card" id="coachCard">
+    <h2>🎯 Game plan <span id="coachGoal" style="color:var(--muted);font-weight:600"></span></h2>
+    <div id="coach"></div>
+  </section>
+
+  <section class="card" id="bubblesCard">
+    <h2>Mile bubbles</h2>
+    <p class="hint" style="margin:0 0 2px">Tap a bubble to log miles up to that number.</p>
+    <div class="bubbles" id="bubbles"></div>
   </section>
 
   <section class="card">

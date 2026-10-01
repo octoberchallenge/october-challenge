@@ -3,7 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2b8fc4">
+<meta name="theme-color" content="#0e2f25">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="October">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>October Challenge Tracker</title>
 <style>
   :root{
@@ -261,6 +267,16 @@
   </div>
 </div>
 
+<div class="modal" id="installModal">
+  <div class="sheet">
+    <h2>📲 Install the app</h2>
+    <p class="hint" id="installHint">Add October Challenge to your home screen for one-tap access.</p>
+    <div id="installSteps"></div>
+    <button class="btn" id="installGo" type="button" style="display:none">Install app</button>
+    <button class="btn secondary" id="installLater" type="button">Not now</button>
+  </div>
+</div>
+
 <div class="modal" id="lbModal">
   <div class="sheet">
     <div class="closeRow"><button id="closeLb" aria-label="Close">✕</button></div>
@@ -282,6 +298,7 @@
     <p class="hint">Your tracker is below — rename it any time. Use the 20 / 50 / 100 buttons to pick which distances you're doing. You can add more trackers if someone joins you.</p>
     <div id="profileList"></div>
     <button class="btn secondary" id="addProfile" type="button">+ Add tracker</button>
+    <button class="btn secondary" id="installRow" type="button" style="margin-top:8px">📲 Install app</button>
 
     <h3>Customize</h3>
     <p class="hint">Show or hide parts of the app.</p>
@@ -1092,8 +1109,43 @@ function finishSetup(){
   store.save();
   $('#setupModal').classList.remove('open'); document.body.style.overflow='';
   render();
+  setTimeout(maybeInstallPrompt, 600);
 }
 function maybeSetup(){ if(!store.data.onboarded) openSetup(); }
+/* ---------- install prompt (Android one-tap, iOS guided steps) ---------- */
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredPrompt=e; });
+function isStandalone(){
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone===true;
+}
+function isIOS(){ return /iphone|ipad|ipod/i.test(window.navigator.userAgent||''); }
+function installSeen(){ try{ return localStorage.getItem('jct50-install')==='done'; }catch(e){ return true; } }
+function markInstallSeen(){ try{ localStorage.setItem('jct50-install','done'); }catch(e){} }
+function openInstall(){
+  if(isStandalone()){ toast('Already installed — look for the October icon on your home screen'); return; }
+  const steps=$('#installSteps'), go=$('#installGo');
+  if(deferredPrompt){
+    // Android/Chrome: real one-tap install
+    $('#installHint').textContent='Add October Challenge to your home screen for one-tap access — just like a real app.';
+    steps.innerHTML='';
+    go.style.display=''; go.textContent='Install app';
+  } else if(isIOS()){
+    // iPhone: guided manual steps
+    $('#installHint').textContent='On iPhone it takes 3 quick taps:';
+    steps.innerHTML='<div style="background:#f6fafd;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0;font-size:15px;line-height:2">'
+      +'<div>1️⃣ Tap the <b>Share</b> button in Safari <span style="font-size:18px">⎙</span><br><span style="color:var(--muted);font-size:13px">(the square with an arrow pointing up, at the bottom)</span></div>'
+      +'<div>2️⃣ Scroll down and tap <b>Add to Home Screen</b></div>'
+      +'<div>3️⃣ Tap <b>Add</b> in the top-right corner</div></div>';
+    go.style.display='none';
+  } else {
+    $('#installHint').textContent='Use your browser\u2019s \u201cInstall\u201d or \u201cAdd to Home Screen\u201d option to keep October Challenge one tap away.';
+    steps.innerHTML='';
+    go.style.display='none';
+  }
+  $('#installModal').classList.add('open'); document.body.style.overflow='hidden';
+}
+function closeInstall(){ $('#installModal').classList.remove('open'); document.body.style.overflow=''; }
+function maybeInstallPrompt(){ if(!isStandalone() && !installSeen()) openInstall(); }
 async function submitForm(){
   const p=activeProfile();
   if(!p){ toast('Add a tracker in Settings first'); return; }
@@ -1163,7 +1215,7 @@ function init(){
   $('#lbModal').onclick=e=>{ if(e.target.id==='lbModal') closeLb(); };
   $('#closeLog').onclick=()=>{ cancelEdit(); closeLog(); };
   $('#logModal').onclick=e=>{ if(e.target.id==='logModal'){ cancelEdit(); closeLog(); } };
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if($('#logModal').classList.contains('open')){ cancelEdit(); closeLog(); } if($('#lbModal').classList.contains('open')) closeLb(); } });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if($('#logModal').classList.contains('open')){ cancelEdit(); closeLog(); } if($('#lbModal').classList.contains('open')) closeLb(); if($('#installModal').classList.contains('open')) closeInstall(); } });
   $('#cancelEdit').onclick=cancelEdit;
   $('#mMinus').onclick=()=>{ const f=$('#fMiles'); f.value=Math.max(0,(parseFloat(f.value)||0)-0.5).toFixed(1).replace(/\.0$/,''); };
   $('#mPlus').onclick=()=>{ const f=$('#fMiles'); f.value=((parseFloat(f.value)||0)+0.5).toFixed(1).replace(/\.0$/,''); };
@@ -1186,6 +1238,20 @@ function init(){
     catch(e){ toast('Refresh failed: '+(e.message||e)); } };
   $('#cloudDisconnect').onclick=()=>{ store.data.supabase={url:'',key:''}; store.save(); sb=null; updateCloudUI(); toast('Disconnected — using this device only'); };
   $('#setupStart').onclick=finishSetup;
+  $('#installGo').onclick=async()=>{
+    if(deferredPrompt){
+      deferredPrompt.prompt();
+      try{ await deferredPrompt.userChoice; }catch(e){}
+      deferredPrompt=null;
+    }
+    markInstallSeen(); closeInstall();
+  };
+  $('#installLater').onclick=()=>{ markInstallSeen(); closeInstall(); };
+  $('#installRow').onclick=openInstall;
+  $('#installModal').onclick=e=>{ if(e.target.id==='installModal') closeInstall(); };
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+  }
   maybeSetup();
   $('#wipeData').onclick=()=>{
     if(!confirm('Erase ALL local data (profiles + entries)? This cannot be undone.')) return;

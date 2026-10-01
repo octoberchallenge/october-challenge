@@ -72,7 +72,8 @@
   /* bubbles */
   .bubbles{display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-top:6px;}
   .bub{aspect-ratio:1; border-radius:50%; border:2px solid #d8b93c; color:#b8932a; background:#fffdf4;
-    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px;}
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; cursor:pointer;
+    -webkit-tap-highlight-color:transparent; user-select:none;}
   .bub.done{border-color:transparent; color:#fff; background:linear-gradient(135deg,var(--blue),var(--green));
     box-shadow:0 2px 6px rgba(43,143,196,.35);}
   .bub.done.c20{background:linear-gradient(135deg,#6fce62,#2f9e44); box-shadow:0 2px 6px rgba(63,163,77,.35);}
@@ -213,6 +214,7 @@
 
   <section class="card" id="bubblesCard">
     <h2>Mile bubbles</h2>
+    <p class="hint" style="margin:0 0 2px">Tap a bubble to log miles up to that number.</p>
     <div class="bubbles" id="bubbles"></div>
   </section>
 
@@ -639,12 +641,26 @@ function renderBubbles(){
   $('#bubbles').className='bubbles '+CH.css;
   let html='';
   for(let i=1;i<=g;i++){
-    if(i<=whole) html+=`<div class="bub done ${CH.css}">${i}</div>`;
+    const tag=`data-bub="${i}"`;
+    if(i<=whole) html+=`<div class="bub done ${CH.css}" ${tag}>${i}</div>`;
     else if(i===whole+1 && frac>0.009)
-      html+=`<div class="bub" style="background:linear-gradient(to top, #bfe3f5 ${Math.round(frac*100)}%, #fffdf4 ${Math.round(frac*100)}%)">${i}</div>`;
-    else html+=`<div class="bub">${i}</div>`;
+      html+=`<div class="bub" ${tag} style="background:linear-gradient(to top, #bfe3f5 ${Math.round(frac*100)}%, #fffdf4 ${Math.round(frac*100)}%)">${i}</div>`;
+    else html+=`<div class="bub" ${tag}>${i}</div>`;
   }
   $('#bubbles').innerHTML=html;
+  $('#bubbles').querySelectorAll('.bub').forEach(b=>b.onclick=()=>bubbleTap(Number(b.dataset.bub)));
+}
+// Tap a bubble to log miles up to that number (uses the selected activity, dated today)
+function bubbleTap(i){
+  const p=activeProfile(); if(!p){ toast('Add a tracker in Settings first'); return; }
+  const g=activeGoal();
+  const t=allocatedFor(p.id,g);
+  if(i<=t){ toast('That mile is already done — nice!'); return; }
+  const add=Math.round((i-t)*10)/10;
+  const e={id:uid(), profileId:p.id, date:todayStr(), activity:selectedActivity, miles:add, note:''};
+  store.data.entries.push(e); store.save(); render();
+  toast(`${fmt(add)} mi ${ACTIVITIES[selectedActivity].label.toLowerCase()} logged`);
+  cloudOp(()=>sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:null}), 'Add not synced');
 }
 function renderLeaderboard(){
   const g=activeGoal(), CH=CHALLENGES[g];

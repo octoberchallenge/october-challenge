@@ -213,8 +213,7 @@
   <section class="card">
     <h2 id="lbTitle">Leaderboard</h2>
     <div id="leaderboard"></div>
-    <button class="btn secondary" id="shareBtn" type="button">Copy progress summary</button>
-    <button class="btn secondary" id="storyBtn" type="button" style="margin-top:8px">📸 Share to Instagram Story</button>
+    <button class="btn secondary" id="storyBtn" type="button">📸 Share to Instagram Story</button>
   </section>
 
   <section class="card">
@@ -988,16 +987,6 @@ function init(){
   $('#cancelEdit').onclick=cancelEdit;
   $('#mMinus').onclick=()=>{ const f=$('#fMiles'); f.value=Math.max(0,(parseFloat(f.value)||0)-0.5).toFixed(1).replace(/\.0$/,''); };
   $('#mPlus').onclick=()=>{ const f=$('#fMiles'); f.value=((parseFloat(f.value)||0)+0.5).toFixed(1).replace(/\.0$/,''); };
-  $('#shareBtn').onclick=()=>{
-    const lines=[];
-    for(const p of store.data.profiles) for(const g of enrolled(p)){
-      const t=allocatedFor(p.id,g);
-      lines.push(`${p.name} (${g}): ${fmt(t)}/${g} mi (${Math.round(Math.min(100,t/g*100))}%)`);
-    }
-    const txt=`October Challenge\n${lines.join('\n')}`;
-    if(navigator.clipboard) navigator.clipboard.writeText(txt).then(()=>toast('Summary copied')).catch(()=>toast('Copy failed'));
-    else toast('Clipboard not available');
-  };
   $('#storyBtn').onclick=shareStory;
   $('#settingsBtn').onclick=()=>{ $('#sbUrl').value=store.data.supabase.url||''; $('#sbKey').value=store.data.supabase.key||'';
     renderProfileList(); $('#settingsModal').classList.add('open'); };

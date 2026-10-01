@@ -69,6 +69,26 @@
   .verse .vtext{font-size:15px; line-height:1.6; font-style:italic; color:#4a3c14;}
   .verse .vref{font-size:13px; font-weight:800; color:#8a6d1a; margin-top:6px;}
   .verse .vtimer{font-size:11.5px; color:var(--muted); margin-top:4px;}
+  /* bubbles */
+  .bubbles{display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-top:6px;}
+  .bub{aspect-ratio:1; border-radius:50%; border:2px solid #d8b93c; color:#b8932a; background:#fffdf4;
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px;}
+  .bub.done{border-color:transparent; color:#fff; background:linear-gradient(135deg,var(--blue),var(--green));
+    box-shadow:0 2px 6px rgba(43,143,196,.35);}
+  .bub.done.c20{background:linear-gradient(135deg,#6fce62,#2f9e44); box-shadow:0 2px 6px rgba(63,163,77,.35);}
+  .bub.done.c50{background:linear-gradient(135deg,#5aa9d6,#6fce62); box-shadow:0 2px 6px rgba(43,143,196,.35);}
+  .bub.done.c100{background:linear-gradient(135deg,#ff8787,#c92a2a); box-shadow:0 2px 6px rgba(201,42,42,.35);}
+  .bubbles.c20{grid-template-columns:repeat(5,1fr);}
+  .bubbles.c100{grid-template-columns:repeat(10,1fr); gap:6px;}
+  .bubbles.c100 .bub{font-size:11px; border-width:1.5px;}
+  /* toggle switches */
+  .switchrow{display:flex; align-items:center; justify-content:space-between; padding:10px 2px; font-weight:600; font-size:15px;}
+  .switch{position:relative; width:46px; height:26px; flex:none;}
+  .switch input{opacity:0; width:100%; height:100%; position:absolute; margin:0; cursor:pointer; z-index:2;}
+  .switch .sl{position:absolute; inset:0; background:#cfd6dd; border-radius:999px; transition:.2s;}
+  .switch .sl:before{content:''; position:absolute; width:20px; height:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.25);}
+  .switch input:checked + .sl{background:var(--green);}
+  .switch input:checked + .sl:before{transform:translateX(20px);}
   .track{margin-top:6px; height:58px; position:relative; overflow:hidden;}
   .mascot{font-size:46px; position:absolute; left:50%; top:2px; transform:translateX(-50%);
     animation:bob .9s ease-in-out infinite; filter:drop-shadow(0 4px 3px rgba(0,0,0,.18));}
@@ -165,7 +185,7 @@
   <div class="chips" id="goalChips" style="margin-top:10px"></div>
   <div class="nudge" id="nudge"></div>
 
-  <section class="card verse">
+  <section class="card verse" id="verseCard">
     <div class="vlabel">📖 STRENGTH FOR THE JOURNEY</div>
     <div class="vtext" id="verseText"></div>
     <div class="vref" id="verseRef"></div>
@@ -189,6 +209,11 @@
   <section class="card" id="coachCard">
     <h2>🎯 Game plan <span id="coachGoal" style="color:var(--muted);font-weight:600"></span></h2>
     <div id="coach"></div>
+  </section>
+
+  <section class="card" id="bubblesCard">
+    <h2>Mile bubbles</h2>
+    <div class="bubbles" id="bubbles"></div>
   </section>
 
   <section class="card" id="logCard">
@@ -236,6 +261,10 @@
     <p class="hint">Your tracker is below — rename it any time. Use the 20 / 50 / 100 buttons to pick which distances you're doing. You can add more trackers if someone joins you.</p>
     <div id="profileList"></div>
     <button class="btn secondary" id="addProfile" type="button">+ Add tracker</button>
+
+    <h3>Customize</h3>
+    <p class="hint">Show or hide parts of the app.</p>
+    <div id="displayToggles"></div>
 
     <h3>Cloud sync (Supabase)</h3>
     <p class="hint">Optional. Connect Supabase so both phones share the same data. Run <b>supabase-schema.sql</b> in your Supabase SQL editor first, then paste your project URL and anon key here. They stay in this browser only.</p>
@@ -333,7 +362,7 @@ const store = {
     try{ this.data = JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ this.data=null; }
     if(!this.data || !Array.isArray(this.data.profiles)){
       this.data = { profiles:[{id:uid(), name:'Pat', color:COLORS[0], challenges:[50]}],
-        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, v:3 };
+        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, display:{bubbles:false, verse:true, coach:true}, v:4 };
     }
     if(!this.data.v){
       this.data.v = 2;
@@ -354,6 +383,13 @@ const store = {
         for(const k of Object.keys(this.data.selected||{})) if(gone.has(k)) delete this.data.selected[k];
       }
       this.data.v = 3;
+      this.save();
+    }
+    if(this.data.v < 4){
+      // v4: customizable display toggles (bubbles off by default)
+      const dflt={bubbles:false, verse:true, coach:true};
+      this.data.display = Object.assign({}, dflt, this.data.display||{});
+      this.data.v = 4;
       this.save();
     }
     if(!this.data.milestones) this.data.milestones = {};
@@ -454,8 +490,25 @@ function activeGoal(){
   const en=enrolled(p), sel=store.data.selected[p.id];
   return en.includes(sel) ? sel : en[0];
 }
+const DISPLAY_OPTS=[['bubbles','Mile bubbles'],['verse','Verse card'],['coach','Game plan']];
+function renderDisplayToggles(){
+  const el=$('#displayToggles'); if(!el) return;
+  const d=store.data.display||{};
+  el.innerHTML=DISPLAY_OPTS.map(([k,label])=>
+    `<label class="switchrow"><span>${label}</span><span class="switch"><input type="checkbox" data-dk="${k}"${d[k]?' checked':''}><span class="sl"></span></span></label>`
+  ).join('');
+  el.querySelectorAll('input[data-dk]').forEach(cb=>cb.onchange=()=>{
+    store.data.display[cb.dataset.dk]=cb.checked; store.save(); render();
+  });
+}
+function applyDisplay(){
+  const d=store.data.display||{};
+  $('#bubblesCard').style.display=d.bubbles?'':'none';
+  $('#verseCard').style.display=d.verse===false?'none':'';
+  $('#coachCard').style.display=d.coach===false?'none':'';
+}
 function render(){
-  renderTabs(); renderGoalChips(); renderMascot(); renderNudge(); renderVerse(); renderStats(); renderCoach(); renderLeaderboard(); renderEntries(); renderProfileList();
+  renderTabs(); renderGoalChips(); renderMascot(); renderNudge(); renderVerse(); renderStats(); renderCoach(); renderBubbles(); renderLeaderboard(); renderEntries(); renderProfileList(); renderDisplayToggles(); applyDisplay();
 }
 function renderTabs(){
   const el=$('#tabs');
@@ -577,6 +630,21 @@ function renderStats(){
       }
     }
   }
+}
+function renderBubbles(){
+  if(store.data.display && store.data.display.bubbles===false) return;
+  const p=activeProfile(), g=activeGoal(), CH=CHALLENGES[g];
+  const t=p?allocatedFor(p.id,g):0;
+  const whole=Math.floor(t), frac=t-whole;
+  $('#bubbles').className='bubbles '+CH.css;
+  let html='';
+  for(let i=1;i<=g;i++){
+    if(i<=whole) html+=`<div class="bub done ${CH.css}">${i}</div>`;
+    else if(i===whole+1 && frac>0.009)
+      html+=`<div class="bub" style="background:linear-gradient(to top, #bfe3f5 ${Math.round(frac*100)}%, #fffdf4 ${Math.round(frac*100)}%)">${i}</div>`;
+    else html+=`<div class="bub">${i}</div>`;
+  }
+  $('#bubbles').innerHTML=html;
 }
 function renderLeaderboard(){
   const g=activeGoal(), CH=CHALLENGES[g];

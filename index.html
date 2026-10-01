@@ -195,24 +195,8 @@
     <div id="completeBadge"></div>
   </section>
 
-  <section class="card" id="logCard">
-    <h2 id="formTitle">Log miles</h2>
-    <form id="logForm" onsubmit="return false;">
-      <label class="fl" for="fDate">Date</label>
-      <input type="date" id="fDate" min="2026-10-01" max="2026-10-31" required>
-      <label class="fl">Activity</label>
-      <div class="chips" id="actChips"></div>
-      <label class="fl" for="fMiles">Miles</label>
-      <div class="milesrow">
-        <button type="button" class="stepper" id="mMinus" aria-label="less">−</button>
-        <input type="number" id="fMiles" min="0.1" max="100" step="0.1" placeholder="e.g. 2.5" inputmode="decimal" required>
-        <button type="button" class="stepper" id="mPlus" aria-label="more">+</button>
-      </div>
-      <label class="fl" for="fNote">Note <span style="font-weight:400">(optional)</span></label>
-      <input type="text" id="fNote" placeholder="Morning walk at the park…" maxlength="120">
-      <button class="btn" id="submitBtn" type="submit">Add miles</button>
-      <button class="btn secondary" id="cancelEdit" type="button" style="display:none">Cancel edit</button>
-    </form>
+  <section style="margin-top:10px">
+    <button class="btn" id="openLogBtn" type="button" style="font-size:17px; padding:16px;">＋ Log miles</button>
   </section>
 
   <section class="card" id="coachCard">
@@ -245,6 +229,29 @@
 
   <div class="foot">October Challenge · Oct 1–31, 2026<br>Upload your completed card by Nov 12</div>
 </main>
+
+<div class="modal" id="logModal">
+  <div class="sheet">
+    <div class="closeRow"><button id="closeLog" aria-label="Close">✕</button></div>
+    <h2 id="formTitle">Log miles</h2>
+    <form id="logForm" onsubmit="return false;">
+      <label class="fl" for="fDate">Date</label>
+      <input type="date" id="fDate" min="2026-10-01" max="2026-10-31" required>
+      <label class="fl">Activity</label>
+      <div class="chips" id="actChips"></div>
+      <label class="fl" for="fMiles">Miles</label>
+      <div class="milesrow">
+        <button type="button" class="stepper" id="mMinus" aria-label="less">−</button>
+        <input type="number" id="fMiles" min="0.1" max="100" step="0.1" placeholder="e.g. 2.5" inputmode="decimal" required>
+        <button type="button" class="stepper" id="mPlus" aria-label="more">+</button>
+      </div>
+      <label class="fl" for="fNote">Note <span style="font-weight:400">(optional)</span></label>
+      <input type="text" id="fNote" placeholder="Morning walk at the park…" maxlength="120">
+      <button class="btn" id="submitBtn" type="submit">Add miles</button>
+      <button class="btn secondary" id="cancelEdit" type="button" style="display:none">Cancel edit</button>
+    </form>
+  </div>
+</div>
 
 <button id="settingsBtn" aria-label="Settings">⚙</button>
 
@@ -705,7 +712,8 @@ function renderNudge(){
   const hr=new Date().getHours();
   if(!loggedToday && hr>=12){
     el.style.display='block';
-    el.innerHTML=`⏰ No miles logged yet today, ${esc(p.name)} — even a 1-mile walk keeps the streak alive. <a href="#logCard">Log them now</a>.`;
+    el.innerHTML=`⏰ No miles logged yet today, ${esc(p.name)} — even a 1-mile walk keeps the streak alive. <a href="#" id="nudgeLog">Log them now</a>.`;
+    $('#nudgeLog').onclick=e=>{ e.preventDefault(); cancelEdit(); openLog(); };
   } else el.style.display='none';
 }
 function renderCoach(){
@@ -901,13 +909,15 @@ function startEdit(id){
   $('#fDate').value=e.date; $('#fMiles').value=e.miles; $('#fNote').value=e.note||'';
   $('#formTitle').textContent='Edit entry'; $('#submitBtn').textContent='Save changes';
   $('#cancelEdit').style.display='block'; renderChips();
-  $('#logCard').scrollIntoView({behavior:'smooth'});
+  openLog();
 }
 function cancelEdit(){
   editingId=null; $('#logForm').reset(); $('#fDate').value=todayStr();
   $('#formTitle').textContent='Log miles'; $('#submitBtn').textContent='Add miles';
   $('#cancelEdit').style.display='none';
 }
+function openLog(){ $('#logModal').classList.add('open'); document.body.style.overflow='hidden'; }
+function closeLog(){ $('#logModal').classList.remove('open'); document.body.style.overflow=''; }
 async function submitForm(){
   const p=activeProfile();
   if(!p){ toast('Add a tracker in Settings first'); return; }
@@ -927,6 +937,7 @@ async function submitForm(){
     toast(`${fmt(miles)} mi ${ACTIVITIES[selectedActivity].label.toLowerCase()} logged`);
     cloudOp(()=>sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:e.note||null}), 'Add not synced');
   }
+  closeLog();
 }
 async function deleteEntry(id){
   if(!confirm('Delete this entry?')) return;
@@ -970,6 +981,10 @@ function init(){
   $('#fDate').value=todayStr();
   renderChips();
   $('#submitBtn').onclick=submitForm;
+  $('#openLogBtn').onclick=()=>{ cancelEdit(); openLog(); };
+  $('#closeLog').onclick=()=>{ cancelEdit(); closeLog(); };
+  $('#logModal').onclick=e=>{ if(e.target.id==='logModal'){ cancelEdit(); closeLog(); } };
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape' && $('#logModal').classList.contains('open')){ cancelEdit(); closeLog(); } });
   $('#cancelEdit').onclick=cancelEdit;
   $('#mMinus').onclick=()=>{ const f=$('#fMiles'); f.value=Math.max(0,(parseFloat(f.value)||0)-0.5).toFixed(1).replace(/\.0$/,''); };
   $('#mPlus').onclick=()=>{ const f=$('#fMiles'); f.value=((parseFloat(f.value)||0)+0.5).toFixed(1).replace(/\.0$/,''); };

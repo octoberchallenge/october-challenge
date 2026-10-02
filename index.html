@@ -411,6 +411,9 @@ const ACTIVITIES = {
   swim: {label:'Swim', icon:'🏊'},
   row:  {label:'Row',  icon:'🚣'}
 };
+// Never crash on an unknown activity (e.g. a hand-edited entry): fall back to
+// the raw value so the miles still log and sync.
+function actLabel(){ return ((typeof selectedActivity!=='undefined' && ACTIVITIES[selectedActivity]) || {label:selectedActivity||'walk'}).label.toLowerCase(); }
 // Rotating encouragement: verses on caring for the body, discipline, and doing hard things.
 // A new one is picked every 4 hours, always different from the last.
 const VERSES = [
@@ -580,7 +583,8 @@ function pinActiveToSelf(){
   }
 }
 const entriesFor = pid => store.data.entries.filter(e=>e.profileId===pid && inChallenge(e.date));
-const totalFor = pid => entriesFor(pid).reduce((s,e)=>s+Number(e.miles),0);
+// Corrupt miles values (hand-edited storage) count as 0 rather than NaN-ing the card.
+const totalFor = pid => entriesFor(pid).reduce((s,e)=>s+(Number(e.miles)||0),0);
 // Miles are counted once and allocated across enrolled challenges in ascending
 // order: the first 20 mi fill the 20-mile challenge, the next 50 fill the
 // 50-mile, then the 100-mile. So 20+50+100 needs 170 real miles.
@@ -648,8 +652,10 @@ async function pullFromCloud(){
   const {data:ents, error:e2} = await sb.from('challenge_entries').select('*');
   if(e2) throw e2;
   const ownBefore = store.data.selfProfileId ? store.data.profiles.find(p=>p.id===store.data.selfProfileId) : null;
-  store.data.profiles = profs.map(p=>({id:p.id, name:p.name, color:p.color||COLORS[0],
-    challenges:Array.isArray(p.challenges)&&p.challenges.length?p.challenges.filter(g=>CHALLENGES[g]):[50]}));
+  store.data.profiles = profs.map(p=>{
+    const ch=Array.isArray(p.challenges)?p.challenges.filter(g=>CHALLENGES[g]):[];
+    return {id:p.id, name:p.name, color:p.color||COLORS[0], challenges:ch.length?ch:[50]};
+  });
   store.data.entries = ents.map(e=>({id:e.id, profileId:e.profile_id, date:e.entry_date,
     activity:e.activity, miles:Number(e.miles), note:e.note||''}));
   if(!store.data.profiles.find(p=>p.id===store.data.activeProfileId))
@@ -1163,7 +1169,7 @@ function streakFor(pid){
 }
 function bestDayFor(pid){
   const by={};
-  for(const e of entriesFor(pid)) by[e.date]=(by[e.date]||0)+Number(e.miles);
+  for(const e of entriesFor(pid)) by[e.date]=(by[e.date]||0)+(Number(e.miles)||0);
   return Math.max(0,...Object.values(by));
 }
 function renderStats(){
@@ -1236,7 +1242,7 @@ function bubbleTap(i){
   const e={id:uid(), profileId:p.id, date:todayStr(), activity:selectedActivity, miles:add, note:''};
   store.data.mine.push(e.id);
   store.data.entries.push(e); store.save(); render();
-  toast(`${fmt(add)} mi ${ACTIVITIES[selectedActivity].label.toLowerCase()} logged`);
+  toast(`${fmt(add)} mi ${actLabel()} logged`);
   cloudOp(()=>sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:null}), 'Add not synced');
 }
 let lbQuery='', lbLetter='All';
@@ -1283,7 +1289,7 @@ function renderEntries(){
     return `<div class="entry"><div class="eicon">${a.icon}</div>
       <div class="einfo"><div class="t">${a.label}${e.note?` — ${esc(e.note)}`:''}</div>
       <div class="d">${prettyDate(e.date)}</div></div>
-      <div class="emi">${fmt(e.miles)} mi</div>
+      <div class="emi">${fmt(Number(e.miles)||0)} mi</div>
       <button class="eact" data-edit="${e.id}" aria-label="Edit">✎</button>
       <button class="eact" data-del="${e.id}" aria-label="Delete">🗑</button></div>`;
   }).join('') || `<div class="empty">No miles logged yet — add your first one above.</div>`;
@@ -1509,8 +1515,8 @@ async function setupCreateNew(p,nm,ch){
 async function setupAdopt(p,match){
   store.data.profiles=store.data.profiles.filter(x=>x.id!==p.id);
   store.data.mine=(store.data.mine||[]).filter(id=>id!==p.id);
-  const np={id:match.id, name:match.name, color:match.color||COLORS[0],
-    challenges:Array.isArray(match.challenges)&&match.challenges.length?match.challenges.filter(g=>CHALLENGES[g]):[50]};
+  const ch0=Array.isArray(match.challenges)?match.challenges.filter(g=>CHALLENGES[g]):[];
+  const np={id:match.id, name:match.name, color:match.color||COLORS[0], challenges:ch0.length?ch0:[50]};
   store.data.profiles.push(np);
   store.data.activeProfileId=np.id;
   store.data.selfProfileId=np.id;
@@ -1608,7 +1614,7 @@ async function submitForm(){
     store.data.mine.push(e.id);
     store.data.entries.push(e); store.save(); render();
     $('#fMiles').value=''; $('#fNote').value='';
-    toast(`${fmt(miles)} mi ${ACTIVITIES[selectedActivity].label.toLowerCase()} logged`);
+    toast(`${fmt(miles)} mi ${actLabel()} logged`);
     cloudOp(()=>sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:e.note||null}), 'Add not synced');
   }
   closeLog();

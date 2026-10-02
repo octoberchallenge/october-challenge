@@ -437,7 +437,7 @@ const store = {
     try{ this.data = JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ this.data=null; }
     if(!this.data || !Array.isArray(this.data.profiles)){
       this.data = { profiles:[{id:uid(), name:'Pat', color:COLORS[0], challenges:[50]}],
-        entries:[], activeProfileId:null, supabase:{url:SB_DEFAULTS.url, key:SB_DEFAULTS.key}, shareBoard:true, mine:[], milestones:{}, selected:{}, display:{bubbles:true, verse:true, coach:true}, onboarded:false, v:7 };
+        entries:[], activeProfileId:null, selfProfileId:null, supabase:{url:SB_DEFAULTS.url, key:SB_DEFAULTS.key}, shareBoard:true, mine:[], milestones:{}, selected:{}, display:{bubbles:true, verse:true, coach:true}, onboarded:false, v:7 };
       this.data.mine.push(this.data.profiles[0].id);
     }
     if(!this.data.v){
@@ -507,6 +507,14 @@ const store = {
       this.data.v = 9;
       this.save();
     }
+    if(this.data.v < 10){
+      // v10: device ownership — the profile this device manages. Turning the
+      // shared board off deletes only this profile from the cloud, never
+      // anyone else's.
+      if(!this.data.selfProfileId) this.data.selfProfileId = this.data.activeProfileId;
+      this.data.v = 10;
+      this.save();
+    }
     if(!this.data.milestones) this.data.milestones = {};
     if(!this.data.supabase) this.data.supabase = {url:'',key:''};
     if(!this.data.selected) this.data.selected = {};
@@ -569,6 +577,9 @@ async function pullFromCloud(){
   const {data:ce, error:e00} = await sb.from('challenge_entries').select('id');
   if(e00) throw e00;
   const haveE = new Set((ce||[]).map(r=>r.id));
+  // Markers for ids the cloud already has are stale — drop them so a later
+  // administrative delete can never resurrect them.
+  for(const id of mine){ if(haveP.has(id)||haveE.has(id)) mine.delete(id); }
   for(const e of store.data.entries){
     if(!haveE.has(e.id) && mine.has(e.id)){
       const {error}=await sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:e.note||null});
@@ -587,6 +598,10 @@ async function pullFromCloud(){
     activity:e.activity, miles:Number(e.miles), note:e.note||''}));
   if(!store.data.profiles.find(p=>p.id===store.data.activeProfileId))
     store.data.activeProfileId = store.data.profiles.length ? store.data.profiles[0].id : null;
+  // If the profile this device owned is gone from the cloud (e.g. an admin
+  // removed a duplicate), re-point ownership at the active tracker.
+  if(store.data.selfProfileId && !store.data.profiles.find(p=>p.id===store.data.selfProfileId))
+    store.data.selfProfileId = store.data.activeProfileId;
   store.save();
 }
 // Invite link: #c=<base64url JSON {u:url,k:anonKey}> — joiners auto-connect.
@@ -618,11 +633,12 @@ async function copyInviteLink(){
 }
 async function deleteMyCloudData(){
   if(!sb) return;
+  // Scoped to the profile this device owns — never the whole shared board.
+  const selfId = store.data.selfProfileId || store.data.activeProfileId;
   const gone=new Set();
-  for(const p of store.data.profiles){
-    try{ await sb.from('challenge_profiles').delete().eq('id',p.id); gone.add(p.id); }catch(e){}
-  }
-  for(const e of store.data.entries){ if(gone.has(e.profileId)) gone.add(e.id); }
+  try{ await sb.from('challenge_entries').delete().eq('profile_id',selfId); }catch(e){}
+  try{ await sb.from('challenge_profiles').delete().eq('id',selfId); gone.add(selfId); }catch(e){}
+  for(const e of store.data.entries){ if(e.profileId===selfId) gone.add(e.id); }
   store.data.mine=(store.data.mine||[]).filter(id=>!gone.has(id));
   store.save();
 }
@@ -1299,16 +1315,19 @@ async function finishSetup(){
         challenges:Array.isArray(adopted.challenges)&&adopted.challenges.length?adopted.challenges.filter(g=>CHALLENGES[g]):[50]};
       store.data.profiles.push(p);
       store.data.activeProfileId=p.id;
+      store.data.selfProfileId=p.id;
     }else{
       p.name=nm; p.challenges=ch;
       try{ await sb.from('challenge_profiles').upsert({id:p.id, name:p.name, color:p.color, challenges:p.challenges}); }
       catch(e){ toast('Profile not synced — kept on this device only'); }
+      store.data.selfProfileId=p.id;
       store.data.mine=(store.data.mine||[]).filter(id=>id!==p.id);
     }
     try{ await pullFromCloud(); }catch(e){}
     p=activeProfile();
   }else{
     p.name=nm; p.challenges=ch;
+    store.data.selfProfileId=p.id;
   }
   store.data.selected[p.id]=p.challenges[0];
   store.save();
@@ -1425,6 +1444,7 @@ function init(){
     if(n && n.trim()){
       const p={id:uid(), name:n.trim().slice(0,24), color:COLORS[store.data.profiles.length%COLORS.length], challenges:[50]};
       store.data.profiles.push(p); store.data.activeProfileId=p.id;
+      store.data.selfProfileId=p.id;
       store.data.mine.push(p.id); store.save(); render();
       cloudOp(()=>sb.from('challenge_profiles').insert({id:p.id,name:p.name,color:p.color,challenges:p.challenges}), 'Add not synced');
     }

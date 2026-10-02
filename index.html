@@ -340,7 +340,7 @@
     <div id="displayToggles"></div>
 
     <h3>Cloud sync (Supabase)</h3>
-    <p class="hint">Connect once, then share your invite link — anyone who opens it joins the shared board automatically. First run <b>supabase-schema.sql</b> in your Supabase SQL editor, then paste your project URL and anon key here.</p>
+    <p class="hint">This app comes pre-connected to the shared board — your miles sync automatically. The invite link below lets others join with one tap.</p>
     <label class="fl" for="sbUrl">Supabase URL</label>
     <input type="url" id="sbUrl" placeholder="https://xyzcompany.supabase.co" autocomplete="off">
     <label class="fl" for="sbKey">Anon key</label>
@@ -436,7 +436,7 @@ const store = {
     try{ this.data = JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ this.data=null; }
     if(!this.data || !Array.isArray(this.data.profiles)){
       this.data = { profiles:[{id:uid(), name:'Pat', color:COLORS[0], challenges:[50]}],
-        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, display:{bubbles:true, verse:true, coach:true}, onboarded:false, v:7 };
+        entries:[], activeProfileId:null, supabase:{url:SB_DEFAULTS.url, key:SB_DEFAULTS.key}, milestones:{}, selected:{}, display:{bubbles:true, verse:true, coach:true}, onboarded:false, v:7 };
     }
     if(!this.data.v){
       this.data.v = 2;
@@ -520,6 +520,12 @@ function allocatedFor(pid, goal){
 const commitment = p => enrolled(p).reduce((a,g)=>a+g,0);
 
 /* ---------- supabase ---------- */
+// Baked-in shared-board connection (Supabase anon key is public by design;
+// table policies decide what it can do). Fresh devices auto-connect.
+const SB_DEFAULTS = {
+  url:'https://nssdfhkzjoanbzgpilvz.supabase.co',
+  key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zc2RmaGt6am9hbmJ6Z3BpbHZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNDgyMDgsImV4cCI6MjA5ODkyNDIwOH0.noQB7SiltD400wftYPv309n5AX8sf5-Kp1ycNJS-0B8'
+};
 let sb = null;
 function initSupabase(){
   sb = null;

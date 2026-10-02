@@ -39,6 +39,13 @@
   .tab .nm{font-weight:700; font-size:15px; display:flex; align-items:center; gap:6px;}
   .dot{width:10px; height:10px; border-radius:50%; display:inline-block;}
   .tab .mi{font-size:12px; color:var(--muted); margin-top:2px;}
+  /* setup match picker */
+  .matchbtn{display:flex; align-items:center; gap:8px; width:100%; border:2px solid var(--line);
+    background:#fff; border-radius:12px; padding:12px; margin:8px 0; cursor:pointer;
+    font-family:inherit; font-size:15px; text-align:left;}
+  .matchbtn:active{border-color:var(--blue); background:#f0f8fd;}
+  .matchbtn .nm{font-weight:700;}
+  .matchbtn .mi{margin-left:auto; font-size:12px; color:var(--muted); white-space:nowrap;}
 
   /* stats */
   .big{font-size:44px; font-weight:800; line-height:1;}
@@ -284,6 +291,7 @@
 
 <div class="modal" id="setupModal">
   <div class="sheet">
+   <div id="setupForm">
     <h2>Welcome! 🎉</h2>
     <p class="hint">Set up your tracker in 10 seconds.</p>
     <label class="fl" for="setupName">Your name</label>
@@ -298,6 +306,14 @@
     </div>
     <p class="hint" style="margin-top:8px" id="setupShareHint">Your name and cards show on the shared board.</p>
     <button class="btn" id="setupStart" type="button">Start tracking</button>
+   </div>
+   <div id="setupMatches" style="display:none">
+    <h2>Is one of these you? 🤔</h2>
+    <p class="hint" id="setupMatchesHint"></p>
+    <div id="setupMatchList"></div>
+    <button class="btn secondary" id="setupMatchNew" type="button" style="margin-top:10px">None of these — create my tracker</button>
+    <button class="btn secondary" id="setupMatchBack" type="button" style="margin-top:8px">← Back</button>
+   </div>
   </div>
 </div>
 
@@ -1317,11 +1333,13 @@ function renderSetupShare(){
 }
 function openSetup(){
   setupChallenges=[50]; setupShare='join'; renderSetupShare();
+  pendingSetup=null; hideSetupMatches();
   const p=activeProfile();
   $('#setupName').value = (p && p.name && p.name!=='Pat') ? p.name : '';
   renderSetupChips();
   $('#setupModal').classList.add('open'); document.body.style.overflow='hidden';
 }
+let pendingSetup=null; // {p, nm, ch} while the user picks from name matches
 async function finishSetup(){
   let p=activeProfile(); if(!p) return;
   const nm=($('#setupName').value.trim()||'Me').slice(0,30);
@@ -1332,40 +1350,77 @@ async function finishSetup(){
   store.save();
   initSupabase();
   if(sb && join){
-    // Adopt an existing board profile with the same name instead of duplicating it.
-    let adopted=null;
+    // Same-name check: if the board already has this name, let the user pick
+    // their tracker from a list instead of a yes/no popup (handles 4 Justins).
+    let matches=[];
     try{
       const {data:cloud}=await sb.from('challenge_profiles').select('id,name,color,challenges');
-      adopted=(cloud||[]).find(r=>r.name.toLowerCase()===nm.toLowerCase() && r.id!==p.id)||null;
-      if(adopted && !confirm('"'+adopted.name+'" is already on the leaderboard. Is this you?\n\nOK = join as '+adopted.name+'\nCancel = create a separate tracker')) adopted=null;
-    }catch(e){ adopted=null; }
-    if(adopted){
-      store.data.profiles=store.data.profiles.filter(x=>x.id!==p.id);
-      store.data.mine=(store.data.mine||[]).filter(id=>id!==p.id);
-      p={id:adopted.id, name:adopted.name, color:adopted.color||COLORS[0],
-        challenges:Array.isArray(adopted.challenges)&&adopted.challenges.length?adopted.challenges.filter(g=>CHALLENGES[g]):[50]};
-      store.data.profiles.push(p);
-      store.data.activeProfileId=p.id;
-      store.data.selfProfileId=p.id;
-    }else{
-      p.name=nm; p.challenges=ch;
-      try{ await sb.from('challenge_profiles').upsert({id:p.id, name:p.name, color:p.color, challenges:p.challenges}); }
-      catch(e){ toast('Profile not synced — kept on this device only'); }
-      store.data.selfProfileId=p.id;
-      store.data.mine=(store.data.mine||[]).filter(id=>id!==p.id);
-    }
-    try{ await pullFromCloud(); }catch(e){}
-    p=activeProfile();
+      matches=(cloud||[]).filter(r=>r.name.toLowerCase()===nm.toLowerCase() && r.id!==p.id);
+      if(matches.length){
+        try{
+          const {data:ents}=await sb.from('challenge_entries').select('profile_id,miles');
+          const totals={};
+          for(const e of (ents||[])) totals[e.profile_id]=(totals[e.profile_id]||0)+Number(e.miles||0);
+          matches.forEach(m=>{ m._miles=totals[m.id]||0; });
+        }catch(e2){}
+      }
+    }catch(e){ matches=[]; }
+    if(matches.length){ pendingSetup={p,nm,ch}; showSetupMatches(nm,matches); return; }
+    await setupCreateNew(p,nm,ch);
   }else{
     p.name=nm; p.challenges=ch;
     store.data.selfProfileId=p.id;
+    finishSetupDone(p);
   }
+}
+async function setupCreateNew(p,nm,ch){
+  p.name=nm; p.challenges=ch;
+  try{ await sb.from('challenge_profiles').upsert({id:p.id, name:p.name, color:p.color, challenges:p.challenges}); }
+  catch(e){ toast('Profile not synced — kept on this device only'); }
+  store.data.selfProfileId=p.id;
+  store.data.mine=(store.data.mine||[]).filter(id=>id!==p.id);
+  try{ await pullFromCloud(); }catch(e){}
+  finishSetupDone(activeProfile());
+}
+async function setupAdopt(p,match){
+  store.data.profiles=store.data.profiles.filter(x=>x.id!==p.id);
+  store.data.mine=(store.data.mine||[]).filter(id=>id!==p.id);
+  const np={id:match.id, name:match.name, color:match.color||COLORS[0],
+    challenges:Array.isArray(match.challenges)&&match.challenges.length?match.challenges.filter(g=>CHALLENGES[g]):[50]};
+  store.data.profiles.push(np);
+  store.data.activeProfileId=np.id;
+  store.data.selfProfileId=np.id;
+  try{ await pullFromCloud(); }catch(e){}
+  finishSetupDone(activeProfile());
+}
+function finishSetupDone(p){
+  if(!p) p=activeProfile();
   store.data.selected[p.id]=p.challenges[0];
   store.save();
   $('#setupModal').classList.remove('open'); document.body.style.overflow='';
   render();
   setTimeout(maybeInstallPrompt, 600);
 }
+function showSetupMatches(nm,matches){
+  $('#setupForm').style.display='none';
+  const box=$('#setupMatches'); box.style.display='';
+  $('#setupMatchesHint').textContent=`"${nm}" is already on the leaderboard — tap yours below, or create a new tracker.`;
+  $('#setupMatchList').innerHTML=matches.map(m=>{
+    const ch=(Array.isArray(m.challenges)?m.challenges.filter(g=>CHALLENGES[g]):[50]).join(' · ');
+    return `<button type="button" class="matchbtn" data-mid="${m.id}">`
+      +`<span class="dot" style="background:${esc(m.color||'#2b8fc4')}"></span>`
+      +`<span class="nm">${esc(m.name)}</span>`
+      +`<span class="mi">${ch} mi · ${fmt(m._miles||0)} logged</span></button>`;
+  }).join('');
+  box.querySelectorAll('[data-mid]').forEach(b=>b.onclick=()=>{
+    const m=matches.find(x=>x.id===b.dataset.mid);
+    const s=pendingSetup; pendingSetup=null; hideSetupMatches();
+    setupAdopt(s.p,m);
+  });
+  $('#setupMatchNew').onclick=()=>{ const s=pendingSetup; pendingSetup=null; hideSetupMatches(); setupCreateNew(s.p,s.nm,s.ch); };
+  $('#setupMatchBack').onclick=()=>{ pendingSetup=null; hideSetupMatches(); };
+}
+function hideSetupMatches(){ $('#setupMatches').style.display='none'; $('#setupForm').style.display=''; }
 function maybeSetup(){ if(!store.data.onboarded) openSetup(); }
 /* ---------- install prompt (Android one-tap, iOS guided steps) ---------- */
 let deferredPrompt=null;

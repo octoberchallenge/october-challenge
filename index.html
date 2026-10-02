@@ -380,6 +380,8 @@
     <h3>Shared board</h3>
     <label class="switchrow"><span>🏆 Shared leaderboard</span><span class="switch"><input type="checkbox" id="shareToggle"><span class="sl"></span></span></label>
     <p class="hint" id="shareHint"></p>
+    <label class="switchrow"><span>🔧 Organizer tools</span><span class="switch"><input type="checkbox" id="orgToggle"><span class="sl"></span></span></label>
+    <p class="hint">Lets this device rename or remove anyone's tracker. Keep it off unless you're running the board.</p>
     <div class="status" id="cloudStatus"></div>
     <button class="btn secondary" id="cloudRefresh" type="button" style="display:none">Refresh from cloud</button>
     <button class="btn secondary" id="cloudInvite" type="button" style="display:none">📋 Copy invite link</button>
@@ -469,7 +471,7 @@ const store = {
     try{ this.data = JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ this.data=null; }
     if(!this.data || !Array.isArray(this.data.profiles)){
       this.data = { profiles:[{id:uid(), name:'Pat', color:COLORS[0], challenges:[50]}],
-        entries:[], activeProfileId:null, selfProfileId:null, supabase:{url:SB_DEFAULTS.url, key:SB_DEFAULTS.key}, shareBoard:true, mine:[], milestones:{}, selected:{}, display:{bubbles:true, verse:true, coach:true}, onboarded:false, v:7 };
+        entries:[], activeProfileId:null, selfProfileId:null, supabase:{url:SB_DEFAULTS.url, key:SB_DEFAULTS.key}, shareBoard:true, mine:[], milestones:{}, selected:{}, display:{bubbles:true, verse:true, coach:true}, onboarded:false, organizer:false, v:7 };
       this.data.mine.push(this.data.profiles[0].id);
     }
     if(!this.data.v){
@@ -547,6 +549,13 @@ const store = {
       this.data.v = 10;
       this.save();
     }
+    if(this.data.v < 11){
+      // v11: organizer tools are a per-device switch, not name-based — other
+      // participants no longer get admin buttons just for sharing a name.
+      if(this.data.organizer===undefined) this.data.organizer=false;
+      this.data.v = 11;
+      this.save();
+    }
     if(!this.data.milestones) this.data.milestones = {};
     if(!this.data.supabase) this.data.supabase = {url:'',key:''};
     if(!this.data.selected) this.data.selected = {};
@@ -557,11 +566,10 @@ const store = {
   save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(this.data)); }catch(e){} }
 };
 const activeProfile = () => store.data.profiles.find(p=>p.id===store.data.activeProfileId);
-// Board permissions: you can only change your own tracker — except Pat,
-// who administers the board.
+// Board permissions: you can only change your own tracker — unless this
+// device has Organizer tools switched on in Settings.
 function ownProfile(){ return store.data.profiles.find(p=>p.id===store.data.selfProfileId) || activeProfile(); }
-function isBoardAdmin(){ const o=ownProfile(); if(!o||!o.name) return false;
-  const n=o.name.trim().toLowerCase(); return n==='pat'||n==='patricia'||n.startsWith('patricia '); }
+function isBoardAdmin(){ return !!store.data.organizer; }
 function canEditProfile(pid){ return isBoardAdmin() || (store.data.selfProfileId && pid===store.data.selfProfileId); }
 // One tracker per device: the active tracker is always your own, so miles
 // can only ever be logged for yourself. Everyone else is leaderboard-only.
@@ -639,18 +647,26 @@ async function pullFromCloud(){
   if(e1) throw e1;
   const {data:ents, error:e2} = await sb.from('challenge_entries').select('*');
   if(e2) throw e2;
+  const ownBefore = store.data.selfProfileId ? store.data.profiles.find(p=>p.id===store.data.selfProfileId) : null;
   store.data.profiles = profs.map(p=>({id:p.id, name:p.name, color:p.color||COLORS[0],
     challenges:Array.isArray(p.challenges)&&p.challenges.length?p.challenges.filter(g=>CHALLENGES[g]):[50]}));
   store.data.entries = ents.map(e=>({id:e.id, profileId:e.profile_id, date:e.entry_date,
     activity:e.activity, miles:Number(e.miles), note:e.note||''}));
   if(!store.data.profiles.find(p=>p.id===store.data.activeProfileId))
     store.data.activeProfileId = store.data.profiles.length ? store.data.profiles[0].id : null;
-  // If the profile this device owned is gone from the cloud (e.g. an admin
-  // removed a duplicate), re-point ownership at the active tracker.
-  if(store.data.selfProfileId && !store.data.profiles.find(p=>p.id===store.data.selfProfileId))
-    store.data.selfProfileId = store.data.activeProfileId;
+  // If the tracker this device owned vanished from the shared board (e.g. a
+  // duplicate was cleaned up), re-adopt a surviving tracker with the same
+  // name. Never silently adopt someone else's tracker — if none matches,
+  // run setup again so the owner picks their tracker.
+  if(store.data.selfProfileId && !store.data.profiles.find(p=>p.id===store.data.selfProfileId)){
+    const nm=((ownBefore&&ownBefore.name)||'').trim().toLowerCase();
+    const same=nm && store.data.profiles.find(p=>(p.name||'').trim().toLowerCase()===nm);
+    if(same){ store.data.selfProfileId=same.id; }
+    else { store.data.selfProfileId=null; store.data.onboarded=false; }
+  }
   pinActiveToSelf();
   store.save();
+  if(!store.data.onboarded) openSetup();
 }
 // Invite link: #c=<base64url JSON {u:url,k:anonKey}> — joiners auto-connect.
 function invitePayload(){
@@ -1314,9 +1330,21 @@ function renderProfileList(){
     if(!confirm(`Remove ${p.name} and all their entries?`)) return;
     store.data.entries=store.data.entries.filter(e=>e.profileId!==p.id);
     store.data.profiles=store.data.profiles.filter(x=>x.id!==p.id);
-    if(store.data.activeProfileId===p.id) store.data.activeProfileId=store.data.profiles[0].id;
-    store.data.selfProfileId=store.data.activeProfileId;
+    if(p.id===store.data.selfProfileId){
+      // You removed your own tracker: stay with a surviving tracker of the
+      // same name if there is one, otherwise run setup again. Never silently
+      // adopt someone else's tracker.
+      const nm=(p.name||'').trim().toLowerCase();
+      const same=nm && store.data.profiles.find(x=>(x.name||'').trim().toLowerCase()===nm);
+      if(same){ store.data.selfProfileId=same.id; }
+      else { store.data.selfProfileId=null; store.data.onboarded=false; }
+    }
+    if(!store.data.profiles.find(x=>x.id===store.data.activeProfileId)){
+      const selfOk=store.data.selfProfileId && store.data.profiles.find(x=>x.id===store.data.selfProfileId);
+      store.data.activeProfileId=selfOk?store.data.selfProfileId:(store.data.profiles[0]?store.data.profiles[0].id:null);
+    }
     store.save(); render();
+    if(!store.data.onboarded) openSetup();
     cloudOp(()=>sb.from('challenge_profiles').delete().eq('id',p.id), 'Remove not synced');
   });
   $('#profileList').querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{
@@ -1518,7 +1546,12 @@ function openInstall(){
 function closeInstall(){ $('#installModal').classList.remove('open'); document.body.style.overflow=''; }
 function maybeInstallPrompt(){ if(!isStandalone() && !installSeen()) openInstall(); }
 async function submitForm(){
-  const p=activeProfile();
+  // Miles always go to the tracker this device owns — never someone else's,
+  // no matter what the active pointer says.
+  const selfId=store.data.selfProfileId;
+  const own=selfId && store.data.profiles.find(x=>x.id===selfId);
+  if(own && store.data.activeProfileId!==selfId){ store.data.activeProfileId=selfId; store.save(); }
+  const p=own || activeProfile();
   if(!p){ toast('Add a tracker in Settings first'); return; }
   const date=$('#fDate').value, miles=parseFloat($('#fMiles').value), note=$('#fNote').value.trim();
   if(!date || !inChallenge(date)){ toast('Pick a date in October 2026'); return; }
@@ -1554,6 +1587,7 @@ function updateCloudUI(){
   $('#cloudInvite').style.display=on?'block':'none';
   const st=$('#cloudStatus');
   const tg=$('#shareToggle'); if(tg) tg.checked = store.data.shareBoard!==false;
+  const og=$('#orgToggle'); if(og) og.checked = !!store.data.organizer;
   const sh=$('#shareHint');
   if(sh) sh.textContent = store.data.shareBoard===false
     ? 'Private — your miles stay on this phone only.'
@@ -1604,6 +1638,10 @@ function init(){
   };
   $('#cloudRefresh').onclick=async()=>{ try{ await pullFromCloud(); render(); toast('Refreshed from cloud'); }
     catch(e){ toast('Refresh failed: '+(e.message||e)); } };
+  $('#orgToggle').onchange=e=>{
+    store.data.organizer=e.target.checked; store.save(); renderProfileList();
+    toast(e.target.checked?'Organizer tools on — you can manage every tracker':'Organizer tools off');
+  };
   $('#setupStart').onclick=finishSetup;
   $('#installGo').onclick=async()=>{
     if(deferredPrompt){

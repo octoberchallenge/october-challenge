@@ -305,7 +305,7 @@
     <p class="hint" style="margin-top:8px">Pick one, two, or all three — your miles fill them in order.</p>
     <label class="fl">Who sees my miles?</label>
     <div class="chips" id="setupShare">
-      <button type="button" class="chip on" data-share="join">🏆 Join the leaderboard</button>
+      <button type="button" class="chip active" data-share="join">🏆 Join the leaderboard</button>
       <button type="button" class="chip" data-share="private">🔒 Just me</button>
     </div>
     <p class="hint" style="margin-top:8px" id="setupShareHint">Your name and cards show on the shared board.</p>
@@ -1368,7 +1368,7 @@ function renderSetupChips(){
 let setupShare='join';
 function renderSetupShare(){
   document.querySelectorAll('#setupShare .chip').forEach(b=>{
-    b.classList.toggle('on', b.dataset.share===setupShare);
+    b.classList.toggle('active', b.dataset.share===setupShare);
     b.onclick=()=>{ setupShare=b.dataset.share; renderSetupShare(); };
   });
   $('#setupShareHint').textContent = setupShare==='join'

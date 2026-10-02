@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e2f25">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="October">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>October Challenge Tracker</title>
+<style>
+  :root{
+    --blue:#2b8fc4; --blue-dark:#1c6e9c; --green:#6fce62; --green-dark:#3fa34d;
+    --navy:#17324a; --gold:#c9a227; --bg:#f2f7fb; --card:#ffffff;
+    --muted:#5b7183; --line:#e3edf3; --danger:#e5484d;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--navy); padding-bottom:96px;}
+  header.hero{background:linear-gradient(135deg,#7fb9d9 0%,#5aa9d6 35%,#6fce62 100%);
+    color:#fff; padding:24px 20px 18px; text-align:center; position:relative; overflow:hidden;}
+  header.hero h1{margin:0; font-size:30px; letter-spacing:.5px; font-weight:800; text-shadow:0 1px 2px rgba(0,0,0,.15);}
+  header.hero h1 .accent{color:#eafbe4;}
+  header.hero p{margin:6px 0 0; font-size:13px; letter-spacing:2px; opacity:.95; font-weight:600;}
+  header.hero .sub{margin-top:8px; font-size:13px; letter-spacing:.5px; opacity:.9; font-weight:400;}
+  main{max-width:560px; margin:0 auto; padding:0 14px;}
+  .card{background:var(--card); border-radius:16px; padding:16px; margin-top:14px;
+    box-shadow:0 2px 10px rgba(23,50,74,.07); border:1px solid var(--line);}
+  .card h2{margin:0 0 10px; font-size:15px; letter-spacing:.4px; color:var(--navy);}
+
+  /* profile tabs */
+  .tabs{display:flex; gap:8px; margin-top:14px; overflow-x:auto; padding-bottom:2px;}
+  .tab{flex:1; min-width:120px; border:2px solid var(--line); background:#fff; border-radius:12px;
+    padding:10px 12px; cursor:pointer; text-align:left; font-family:inherit;}
+  .tab.active{border-color:var(--blue); background:#f0f8fd;}
+  .tab .nm{font-weight:700; font-size:15px; display:flex; align-items:center; gap:6px;}
+  .dot{width:10px; height:10px; border-radius:50%; display:inline-block;}
+  .tab .mi{font-size:12px; color:var(--muted); margin-top:2px;}
+
+  /* stats */
+  .big{font-size:44px; font-weight:800; line-height:1;}
+  .big small{font-size:16px; font-weight:600; color:var(--muted);}
+  .bar{height:12px; background:#e8f1f6; border-radius:99px; margin:12px 0 4px; overflow:hidden;}
+  .bar > div{height:100%; border-radius:99px; background:linear-gradient(90deg,var(--blue),var(--green));
+    transition:width .5s ease;}
+  .pct{font-size:13px; color:var(--muted); font-weight:600;}
+  .statgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px;}
+  .stat{background:#f6fafd; border:1px solid var(--line); border-radius:12px; padding:8px 4px; text-align:center;}
+  .stat .v{font-size:17px; font-weight:800;}
+  .stat .l{font-size:9px; color:var(--muted); margin-top:2px; letter-spacing:.3px; line-height:1.35;}
+  #statsTitle{margin-bottom:4px;}
+  .bdrow{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;}
+  .bdrow .bl{display:flex;align-items:center;gap:5px;min-width:78px;font-weight:700;color:var(--muted);}
+  .bdrow .bt{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap;}
+  .bdbar{flex:1;height:8px;background:#eef4f8;border-radius:99px;overflow:hidden;}
+  .bdbar>div{height:100%;border-radius:99px;}
+  .lbperson{padding:12px 2px;border-bottom:1px solid var(--line);}
+  .lbperson:last-child{border-bottom:none;}
+  .lbname{display:flex;align-items:center;gap:7px;font-weight:800;font-size:17px;}
+  .lbcard{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:13px;}
+
+  .gchip .dot{margin-right:2px;}
+  .gchip.active.c20{border-color:#3fa34d; background:#e9f7ec; color:#2f7a3a;}
+  .gchip.active.c50{border-color:var(--blue); background:#eaf5fc; color:var(--blue-dark);}
+  .gchip.active.c100{border-color:#e5484d; background:#fdecec; color:#b3272e;}
+  .cbtn{border:2px solid var(--line); background:#fff; border-radius:99px; min-width:44px; padding:10px 14px;
+    font-size:12.5px; font-weight:800; cursor:pointer; font-family:inherit; color:var(--muted);}
+  .cbtn.on.c20{border-color:#3fa34d; background:#e9f7ec; color:#2f7a3a;}
+  .cbtn.on.c50{border-color:var(--blue); background:#eaf5fc; color:var(--blue-dark);}
+  .cbtn.on.c100{border-color:#e5484d; background:#fdecec; color:#b3272e;}
+  .chrow{display:flex; gap:6px; align-items:center; margin-top:6px;}
+  .chrow .cl{font-size:11.5px; color:var(--muted); font-weight:700; margin-right:2px;}
+  .nudge{display:none; background:#fff8e1; border:1px solid #ffe082; color:#7a5c00; border-radius:12px;
+    padding:8px 12px; margin-top:10px; font-size:13px; font-weight:600; line-height:1.45;}
+  .nudge a{color:#b3272e; font-weight:800;}
+  .nudge.top{margin:0; border-radius:0; border-left:0; border-right:0; border-top:0; text-align:center;}
+  .coach-line{font-size:14px; line-height:1.55; margin:6px 0;}
+  .coach-line:first-child{margin-top:0;} .coach-line:last-child{margin-bottom:0;}
+  .coach-big{font-size:15px; font-weight:800;}
+  .coach-ok{color:#2f7a3a;} .coach-warn{color:#b3272e;} .coach-mid{color:#8a6d00;}
+  /* slim verse strip */
+  .verse-strip{margin-top:10px; padding:10px 14px;
+    background:linear-gradient(135deg,#fdf6e3,#fbeed1); border:1px solid #ecd9a8; border-radius:14px;}
+  .verse-strip .vtext{font-size:13.5px; line-height:1.5; font-style:italic; color:#4a3c14;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .verse-strip .vmeta{font-size:11.5px; color:#8a6d1a; margin-top:3px; font-weight:700;}
+  .verse-strip .vmeta .vtimer{color:var(--muted); font-weight:400;}
+  /* bubbles */
+  .bubbles{display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-top:6px;}
+  .bub{aspect-ratio:1; border-radius:50%; border:2px solid #d8b93c; color:#b8932a; background:#fffdf4;
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; cursor:pointer;
+    -webkit-tap-highlight-color:transparent; user-select:none;}
+  .bub.done{border-color:transparent; color:#fff; background:linear-gradient(135deg,var(--blue),var(--green));
+    box-shadow:0 2px 6px rgba(43,143,196,.35);}
+  .bub.done.c20{background:linear-gradient(135deg,#6fce62,#2f9e44); box-shadow:0 2px 6px rgba(63,163,77,.35);}
+  .bub.done.c50{background:linear-gradient(135deg,#5aa9d6,#6fce62); box-shadow:0 2px 6px rgba(43,143,196,.35);}
+  .bub.done.c100{background:linear-gradient(135deg,#ff8787,#c92a2a); box-shadow:0 2px 6px rgba(201,42,42,.35);}
+  .bubbles.c20{grid-template-columns:repeat(5,1fr);}
+  .bubbles.c100{grid-template-columns:repeat(10,1fr); gap:6px;}
+  .bubbles.c100 .bub{font-size:11px; border-width:1.5px;}
+  /* toggle switches */
+  .switchrow{display:flex; align-items:center; justify-content:space-between; padding:10px 2px; font-weight:600; font-size:15px;}
+  .switch{position:relative; width:46px; height:26px; flex:none;}
+  .switch input{opacity:0; width:100%; height:100%; position:absolute; margin:0; cursor:pointer; z-index:2;}
+  .switch .sl{position:absolute; inset:0; background:#cfd6dd; border-radius:999px; transition:.2s;}
+  .switch .sl:before{content:''; position:absolute; width:20px; height:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.25);}
+  .switch input:checked + .sl{background:var(--green);}
+  .switch input:checked + .sl:before{transform:translateX(20px);}
+  /* activity chip icon tap animation */
+  .chip .aicon{display:inline-block;}
+  .chip .aicon.pop{animation:chipPop .55s ease;}
+  @keyframes chipPop{0%{transform:scale(1) rotate(0);}35%{transform:scale(1.5) rotate(-14deg);}70%{transform:scale(.92) rotate(8deg);}100%{transform:scale(1) rotate(0);}}
+  .complete-badge{background:linear-gradient(135deg,var(--gold),#f0c94a); color:#5c430a; font-weight:800;
+    text-align:center; border-radius:12px; padding:10px; margin-top:12px;}
+
+  /* form */
+  label.fl{display:block; font-size:12.5px; font-weight:700; color:var(--muted); margin:12px 0 6px; letter-spacing:.3px;}
+  label.fl:first-child{margin-top:0;}
+  input[type=date],input[type=number],input[type=text],input[type=url],input[type=password],textarea{
+    width:100%; padding:12px; font-size:16px; border:2px solid var(--line); border-radius:12px; font-family:inherit;
+    color:var(--navy); background:#fff;}
+  input:focus,textarea:focus{outline:none; border-color:var(--blue);}
+  .chips{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{border:2px solid var(--line); background:#fff; border-radius:99px; padding:9px 14px; font-size:14px;
+    font-weight:600; cursor:pointer; font-family:inherit; color:var(--navy);}
+  .chip.active{border-color:var(--blue); background:#eaf5fc; color:var(--blue-dark);}
+  .milesrow{display:flex; gap:8px; align-items:stretch;}
+  .stepper{width:52px; border:2px solid var(--line); background:#fff; border-radius:12px; font-size:22px;
+    cursor:pointer; color:var(--blue-dark); font-weight:700;}
+  .btn{width:100%; margin-top:14px; padding:14px; border:none; border-radius:14px; font-size:16px; font-weight:800;
+    color:#fff; background:linear-gradient(135deg,var(--blue),var(--green-dark)); cursor:pointer; font-family:inherit;}
+  .btn:active{transform:scale(.98);}
+  .btn.secondary{background:#fff; color:var(--blue-dark); border:2px solid var(--blue); margin-top:8px;}
+  .btn.danger{background:#fff; color:var(--danger); border:2px solid var(--danger);}
+
+  /* leaderboard */
+  .lbrow{margin-bottom:12px;}
+  .lbrow:last-child{margin-bottom:0;}
+  .lbrow .top{display:flex; justify-content:space-between; font-size:14px; font-weight:700; margin-bottom:6px;}
+  .lbrow .top .sc{color:var(--muted); font-weight:600;}
+  .ahead{font-size:12px; color:var(--green-dark); font-weight:700; margin-top:4px;}
+
+  /* entries */
+  .entry{display:flex; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);}
+  .entry:last-child{border-bottom:none;}
+  .eicon{font-size:22px; width:40px; height:40px; border-radius:12px; background:#f0f8fd;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .einfo{flex:1; min-width:0;}
+  .einfo .t{font-weight:700; font-size:14.5px;}
+  .einfo .d{font-size:12px; color:var(--muted);}
+  .emi{font-weight:800; font-size:15px; white-space:nowrap;}
+  .eact{background:none; border:none; font-size:16px; cursor:pointer; padding:6px; color:var(--muted);}
+  .empty{color:var(--muted); font-size:14px; text-align:center; padding:18px 0;}
+
+  /* settings */
+  #settingsBtn{position:fixed; right:16px; bottom:16px; width:56px; height:56px; border-radius:50%;
+    border:none; background:var(--navy); color:#fff; font-size:24px; cursor:pointer;
+    box-shadow:0 4px 14px rgba(0,0,0,.25); z-index:40;}
+  .modal{position:fixed; inset:0; background:rgba(23,50,74,.5); display:none; z-index:50;
+    align-items:flex-end; justify-content:center;}
+  .modal.open{display:flex;}
+  .sheet{background:#fff; width:100%; max-width:560px; border-radius:20px 20px 0 0; padding:20px;
+    max-height:88vh; overflow-y:auto;}
+  .sheet h2{margin:0 0 4px; font-size:18px;}
+  .sheet h3{font-size:14px; margin:20px 0 8px; color:var(--navy);}
+  .sheet .hint{font-size:13px; color:var(--muted); margin:0 0 8px; line-height:1.45;}
+  .prow{display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line);}
+  .prow .nm{flex:1; font-weight:700;}
+  .prow button{border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 10px;
+    font-size:13px; cursor:pointer; font-family:inherit;}
+  .status{font-size:13px; margin-top:8px; font-weight:600;}
+  .status.ok{color:var(--green-dark);} .status.err{color:var(--danger);}
+  .closeRow{display:flex; justify-content:flex-end;}
+  .closeRow button{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);}
+
+  #toast{position:fixed; left:50%; bottom:84px; transform:translateX(-50%) translateY(20px); background:var(--navy);
+    color:#fff; padding:12px 18px; border-radius:12px; font-size:14px; font-weight:600; opacity:0;
+    transition:all .25s; pointer-events:none; z-index:60; max-width:90vw; text-align:center;}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  #confetti{position:fixed; inset:0; pointer-events:none; display:none; z-index:55;}
+  .foot{text-align:center; color:var(--muted); font-size:12px; margin-top:18px; line-height:1.6;}
+</style>
+</head>
+<body><script>
+try{
+localStorage.setItem('jct50-v1','{"profiles": [{"id": "seed-pat", "name": "Pat", "color": "#2b8fc4", "challenges": [50]}, {"id": "seed-alec", "name": "Alec", "color": "#3fa34d", "challenges": [20, 50, 100]}], "entries": [{"id": "e1", "profileId": "seed-alec", "date": "2026-10-01", "activity": "walk", "miles": 24, "note": ""}, {"id": "e2", "profileId": "seed-pat", "date": "2026-10-01", "activity": "run", "miles": 10, "note": ""}], "activeProfileId": "seed-pat", "supabase": {"url": "", "key": ""}, "milestones": {}, "selected": {}, "display": {"bubbles": false, "verse": true, "coach": true}, "onboarded": true, "v": 6}');
+localStorage.setItem('jct50-install','done');
+}catch(e){}
+window.addEventListener('load',function(){setTimeout(function(){var b=document.querySelector('#openLbBtn');if(b)b.click();},900);});
+</script>
+<div class="nudge top" id="nudge"></div>
+
+<header class="hero">
+  <h1>October <span class="accent">Challenge</span></h1>
+  <p>RUN · WALK · HIKE · CYCLE · SWIM · ROW</p>
+  <div class="sub">20 · 50 · 100 miles through October</div>
+</header>
+
+<main>
+  <div class="tabs" id="tabs"></div>
+  <div class="chips" id="goalChips" style="margin-top:10px"></div>
+
+  <section class="card" id="statsCard">
+    <h2 id="statsTitle">Progress</h2>
+    <div class="big"><span id="totalMi">0</span> <small id="goalMi">/ 50 mi</small></div>
+    <div class="bar"><div id="barFill" style="width:0%"></div></div>
+    <div class="pct" id="pctTxt">0% complete</div>
+    <div class="statgrid">
+      <div class="stat"><div class="v" id="stRemain">50</div><div class="l">TO GO</div></div>
+      <div class="stat"><div class="v" id="stPace">1.6</div><div class="l">MI / DAY</div></div>
+      <div class="stat"><div class="v" id="stStreak">0</div><div class="l">STREAK</div></div>
+      <div class="stat"><div class="v" id="stBest">0</div><div class="l">BEST DAY</div></div>
+    </div>
+    <div id="goalBreakdown"></div>
+    <div id="completeBadge"></div>
+  </section>
+
+  <section style="margin-top:10px; display:flex; gap:10px;">
+    <button class="btn" id="openLogBtn" type="button" style="flex:1.25; margin-top:0; font-size:17px; padding:14px 6px;">＋ Log miles</button>
+    <button class="btn secondary" id="openLbBtn" type="button" style="flex:1; margin-top:0; font-size:17px; padding:14px 6px;">🏆 Leaderboard</button>
+  </section>
+
+  <section class="card" id="coachCard">
+    <h2>🎯 Game plan <span id="coachGoal" style="color:var(--muted);font-weight:600"></span></h2>
+    <div id="coach"></div>
+  </section>
+
+  <section class="card" id="bubblesCard">
+    <h2>Mile bubbles</h2>
+    <p class="hint" style="margin:0 0 2px">Tap a bubble to log miles up to that number.</p>
+    <div class="bubbles" id="bubbles"></div>
+  </section>
+
+  <section class="card">
+    <h2>Recent entries</h2>
+    <div id="entries"></div>
+  </section>
+
+  <section class="verse-strip" id="verseCard">
+    <div class="vtext" id="verseText"></div>
+    <div class="vmeta">📖 <span id="verseRef"></span> · <span class="vtimer" id="verseTimer"></span></div>
+  </section>
+
+  <div class="foot">October Challenge · Oct 1–31, 2026<br>Upload your completed card by Nov 12</div>
+</main>
+
+<div class="modal" id="logModal">
+  <div class="sheet">
+    <div class="closeRow"><button id="closeLog" aria-label="Close">✕</button></div>
+    <h2 id="formTitle">Log miles</h2>
+    <form id="logForm" onsubmit="return false;">
+      <label class="fl" for="fDate">Date</label>
+      <input type="date" id="fDate" min="2026-10-01" max="2026-10-31" required>
+      <label class="fl">Activity</label>
+      <div class="chips" id="actChips"></div>
+      <label class="fl" for="fMiles">Miles</label>
+      <div class="milesrow">
+        <button type="button" class="stepper" id="mMinus" aria-label="less">−</button>
+        <input type="number" id="fMiles" min="0.1" max="100" step="0.1" placeholder="e.g. 2.5" inputmode="decimal" required>
+        <button type="button" class="stepper" id="mPlus" aria-label="more">+</button>
+      </div>
+      <label class="fl" for="fNote">Note <span style="font-weight:400">(optional)</span></label>
+      <input type="text" id="fNote" placeholder="Morning walk at the park…" maxlength="120">
+      <button class="btn" id="submitBtn" type="submit">Add miles</button>
+      <button class="btn secondary" id="cancelEdit" type="button" style="display:none">Cancel edit</button>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="setupModal">
+  <div class="sheet">
+    <h2>Welcome! 🎉</h2>
+    <p class="hint">Set up your tracker in 10 seconds. Your data stays on this phone.</p>
+    <label class="fl" for="setupName">Your name</label>
+    <input type="text" id="setupName" placeholder="Your name" maxlength="30" autocomplete="off">
+    <label class="fl">Challenge cards</label>
+    <div class="chips" id="setupChips"></div>
+    <p class="hint" style="margin-top:8px">Pick one, two, or all three — your miles fill them in order.</p>
+    <button class="btn" id="setupStart" type="button">Start tracking</button>
+  </div>
+</div>
+
+<div class="modal" id="installModal">
+  <div class="sheet">
+    <h2>📲 Install the app</h2>
+    <p class="hint" id="installHint">Add October Challenge to your home screen for one-tap access.</p>
+    <div id="installSteps"></div>
+    <button class="btn" id="installGo" type="button" style="display:none">Install app</button>
+    <button class="btn secondary" id="installLater" type="button">Not now</button>
+  </div>
+</div>
+
+<div class="modal" id="lbModal">
+  <div class="sheet">
+    <div class="closeRow"><button id="closeLb" aria-label="Close">✕</button></div>
+    <h2 id="lbTitle">Leaderboard</h2>
+    <div id="leaderboard"></div>
+    <button class="btn secondary" id="storyBtn" type="button" style="margin-top:10px">📸 Share leaderboard to Instagram Story</button>
+    <button class="btn secondary" id="myStoryBtn" type="button" style="margin-top:8px">📸 Share my progress</button>
+  </div>
+</div>
+
+<button id="settingsBtn" aria-label="Settings">⚙</button>
+
+<div class="modal" id="settingsModal">
+  <div class="sheet">
+    <div class="closeRow"><button id="closeSettings" aria-label="Close">✕</button></div>
+    <h2>Settings</h2>
+
+    <h3>Trackers</h3>
+    <p class="hint">Your tracker is below — rename it any time. Use the 20 / 50 / 100 buttons to pick which distances you're doing. You can add more trackers if someone joins you.</p>
+    <div id="profileList"></div>
+    <button class="btn secondary" id="addProfile" type="button">+ Add tracker</button>
+    <button class="btn secondary" id="installRow" type="button" style="margin-top:8px">📲 Install app</button>
+
+    <h3>Customize</h3>
+    <p class="hint">Show or hide parts of the app.</p>
+    <div id="displayToggles"></div>
+
+    <h3>Cloud sync (Supabase)</h3>
+    <p class="hint">Optional. Connect Supabase so both phones share the same data. Run <b>supabase-schema.sql</b> in your Supabase SQL editor first, then paste your project URL and anon key here. They stay in this browser only.</p>
+    <label class="fl" for="sbUrl">Supabase URL</label>
+    <input type="url" id="sbUrl" placeholder="https://xyzcompany.supabase.co" autocomplete="off">
+    <label class="fl" for="sbKey">Anon key</label>
+    <input type="password" id="sbKey" placeholder="eyJhbGciOi…" autocomplete="off">
+    <button class="btn" id="cloudConnect" type="button">Connect &amp; sync</button>
+    <button class="btn secondary" id="cloudRefresh" type="button" style="display:none">Refresh from cloud</button>
+    <button class="btn secondary" id="cloudDisconnect" type="button" style="display:none">Disconnect</button>
+    <div class="status" id="cloudStatus"></div>
+
+    <h3>Data</h3>
+    <button class="btn danger" id="wipeData" type="button">Erase all local data</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<canvas id="confetti"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const CHALLENGES = {
+  20:  {miles:20,  label:'20-Mile',  css:'c20',  solid:'#3fa34d', grad:'linear-gradient(90deg,#6fce62,#2f9e44)'},
+  50:  {miles:50,  label:'50-Mile',  css:'c50',  solid:'#2b8fc4', grad:'linear-gradient(90deg,#5aa9d6,#6fce62)'},
+  100: {miles:100, label:'100-Mile', css:'c100', solid:'#e5484d', grad:'linear-gradient(90deg,#ff8787,#c92a2a)'}
+};
+const ACTIVITIES = {
+  run:  {label:'Run',  icon:'🏃'},
+  walk: {label:'Walk', icon:'🚶'},
+  hike: {label:'Hike', icon:'🥾'},
+  cycle:{label:'Cycle',icon:'🚴'},
+  swim: {label:'Swim', icon:'🏊'},
+  row:  {label:'Row',  icon:'🚣'}
+};
+// Rotating encouragement: verses on caring for the body, discipline, and doing hard things.
+// A new one is picked every 4 hours, always different from the last.
+const VERSES = [
+  {t:"Do you not know that your body is a temple of the Holy Spirit within you? So glorify God in your body.", r:"1 Corinthians 6:19-20"},
+  {t:"Run in such a way as to get the prize.", r:"1 Corinthians 9:24"},
+  {t:"I discipline my body and keep it under control.", r:"1 Corinthians 9:27"},
+  {t:"I can do all things through him who strengthens me.", r:"Philippians 4:13"},
+  {t:"They who wait for the Lord shall renew their strength; they shall run and not be weary.", r:"Isaiah 40:31"},
+  {t:"God gave us a spirit not of fear but of power and love and self-control.", r:"2 Timothy 1:7"},
+  {t:"Let us run with endurance the race that is set before us.", r:"Hebrews 12:1"},
+  {t:"While bodily training is of some value, godliness is of value in every way.", r:"1 Timothy 4:8"},
+  {t:"Let us not grow weary of doing good, for in due season we will reap, if we do not give up.", r:"Galatians 6:9"},
+  {t:"Be strong and courageous, for the Lord your God is with you wherever you go.", r:"Joshua 1:9"},
+  {t:"Present your bodies as a living sacrifice, holy and acceptable to God.", r:"Romans 12:1"},
+  {t:"I press on toward the goal for the prize.", r:"Philippians 3:14"},
+  {t:"Though our outer self is wasting away, our inner self is being renewed day by day.", r:"2 Corinthians 4:16"},
+  {t:"If you faint in the day of adversity, your strength is small.", r:"Proverbs 24:10"},
+  {t:"Fear not, for I am with you. I will strengthen you, I will help you.", r:"Isaiah 41:10"},
+  {t:"It is God who arms me with strength.", r:"Psalm 18:32"},
+  {t:"The joy of the Lord is your strength.", r:"Nehemiah 8:10"},
+  {t:"Seek the Lord and his strength; seek his presence continually.", r:"1 Chronicles 16:11"},
+  {t:"Be strong in the Lord and in the strength of his might.", r:"Ephesians 6:10"},
+  {t:"Be strong and courageous. He will not leave you or forsake you.", r:"Deuteronomy 31:6"},
+  {t:"Blessed is the one who remains steadfast under trial.", r:"James 1:12"},
+  {t:"Suffering produces endurance, and endurance produces character.", r:"Romans 5:3-4"},
+  {t:"I have fought the good fight, I have finished the race, I have kept the faith.", r:"2 Timothy 4:7"},
+  {t:"Whatever you do, work heartily, as for the Lord.", r:"Colossians 3:23"}
+];
+const VERSE_MS = 4*3600*1000;
+function verseSlot(){ return Math.floor(Date.now()/VERSE_MS); }
+function renderVerse(){
+  const v = VERSES[verseSlot() % VERSES.length];
+  $('#verseText').textContent = '\u201C' + v.t + '\u201D';
+  $('#verseRef').textContent = v.r;
+  const msLeft = VERSE_MS - (Date.now() % VERSE_MS);
+  const h = Math.floor(msLeft/3600000), m = Math.floor(msLeft%3600000/60000);
+  $('#verseTimer').textContent = `New verse in ${h}h ${m}m`;
+}
+const COLORS = ['#2f9e44','#2b8fc4','#9c5fd3','#e0832f','#d6336c','#0ca678'];
+const LS_KEY = 'jct50-v1';
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function dateStr(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function inChallenge(ds){ return ds >= '2026-10-01' && ds <= '2026-10-31'; }
+function todayStr(){ return dateStr(new Date()); }
+function fmt(n){ return (Math.round(n*10)/10).toString(); }
+function prettyDate(ds){
+  const [y,m,d] = ds.split('-').map(Number);
+  return new Date(y, m-1, d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- store ---------- */
+const store = {
+  data:null,
+  load(){
+    try{ this.data = JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ this.data=null; }
+    if(!this.data || !Array.isArray(this.data.profiles)){
+      this.data = { profiles:[{id:uid(), name:'Pat', color:COLORS[0], challenges:[50]}],
+        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, display:{bubbles:false, verse:true, coach:true}, onboarded:false, v:6 };
+    }
+    if(!this.data.v){
+      this.data.v = 2;
+      for(const p of this.data.profiles){
+        if(!Array.isArray(p.challenges) || !p.challenges.length) p.challenges=[50];
+        p.challenges = p.challenges.filter(g=>CHALLENGES[g]);
+        if(!p.challenges.length) p.challenges=[50];
+      }
+      if(this.data.profiles.length===1)
+        this.data.profiles.push({id:uid(), name:'Husband', color:COLORS[1], challenges:[20,50,100]});
+    }
+    if(this.data.v < 3){
+      // Solo tracker: drop any auto-added "Husband" profile and its entries
+      const gone = new Set(this.data.profiles.filter(p=>p.name && p.name.toLowerCase()==='husband').map(p=>p.id));
+      if(gone.size){
+        this.data.profiles = this.data.profiles.filter(p=>!gone.has(p.id));
+        this.data.entries = (this.data.entries||[]).filter(e=>!gone.has(e.profileId));
+        for(const k of Object.keys(this.data.selected||{})) if(gone.has(k)) delete this.data.selected[k];
+      }
+      this.data.v = 3;
+      this.save();
+    }
+    if(this.data.v < 4){
+      // v4: customizable display toggles (bubbles off by default)
+      const dflt={bubbles:false, verse:true, coach:true};
+      this.data.display = Object.assign({}, dflt, this.data.display||{});
+      this.data.v = 4;
+      this.save();
+    }
+    if(this.data.v < 5){
+      // v5: first-launch welcome setup — existing users skip it
+      this.data.onboarded = true;
+      this.data.v = 5;
+      this.save();
+    }
+    if(this.data.v < 6){
+      // v6: progress is measured against total commitment (sum of enrolled
+      // challenges), so carry per-goal milestone celebrations over to the
+      // total-based keys to avoid re-toasting them.
+      for(const p of this.data.profiles){
+        for(const g of enrolled(p)) for(const k of ['half','full']){
+          if(this.data.milestones[p.id+':'+g+':'+k]) this.data.milestones[p.id+':total:'+k]=true;
+        }
+      }
+      this.data.v = 6;
+      this.save();
+    }
+    if(!this.data.milestones) this.data.milestones = {};
+    if(!this.data.supabase) this.data.supabase = {url:'',key:''};
+    if(!this.data.selected) this.data.selected = {};
+    if(!this.data.activeProfileId || !this.data.profiles.find(p=>p.id===this.data.activeProfileId))
+      this.data.activeProfileId = this.data.profiles.length ? this.data.profiles[0].id : null;
+  },
+  save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(this.data)); }catch(e){} }
+};
+const activeProfile = () => store.data.profiles.find(p=>p.id===store.data.activeProfileId);
+const entriesFor = pid => store.data.entries.filter(e=>e.profileId===pid && inChallenge(e.date));
+const totalFor = pid => entriesFor(pid).reduce((s,e)=>s+Number(e.miles),0);
+// Miles are counted once and allocated across enrolled challenges in ascending
+// order: the first 20 mi fill the 20-mile challenge, the next 50 fill the
+// 50-mile, then the 100-mile. So 20+50+100 needs 170 real miles.
+function allocatedFor(pid, goal){
+  const p = store.data.profiles.find(x=>x.id===pid); if(!p) return 0;
+  let remaining = totalFor(pid);
+  for(const g of enrolled(p)){
+    const a = Math.min(Math.max(0, remaining), g);
+    if(g===goal) return a;
+    remaining -= a;
+  }
+  return 0;
+}
+// Total commitment = sum of all enrolled challenges (e.g. 20+50+100 = 170)
+const commitment = p => enrolled(p).reduce((a,g)=>a+g,0);
+
+/* ---------- supabase ---------- */
+let sb = null;
+function initSupabase(){
+  sb = null;
+  const cfg = store.data.supabase;
+  if(cfg && cfg.url && cfg.key && window.supabase){
+    try{ sb = window.supabase.createClient(cfg.url, cfg.key); }catch(e){ sb=null; }
+  }
+  updateCloudUI();
+}
+async function pullFromCloud(){
+  if(!sb) return;
+  const {data:profs, error:e1} = await sb.from('challenge_profiles').select('*');
+  if(e1) throw e1;
+  const {data:ents, error:e2} = await sb.from('challenge_entries').select('*');
+  if(e2) throw e2;
+  if(profs.length===0 && store.data.profiles.length>0){
+    for(const p of store.data.profiles)
+      await sb.from('challenge_profiles').insert({id:p.id, name:p.name, color:p.color, challenges:enrolled(p)});
+    for(const e of store.data.entries)
+      await sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:e.note||null});
+  } else {
+    store.data.profiles = profs.map(p=>({id:p.id, name:p.name, color:p.color||COLORS[0],
+      challenges:Array.isArray(p.challenges)&&p.challenges.length?p.challenges.filter(g=>CHALLENGES[g]):[50]}));
+    store.data.entries = ents.map(e=>({id:e.id, profileId:e.profile_id, date:e.entry_date,
+      activity:e.activity, miles:Number(e.miles), note:e.note||''}));
+    if(!store.data.profiles.find(p=>p.id===store.data.activeProfileId))
+      store.data.activeProfileId = store.data.profiles.length ? store.data.profiles[0].id : null;
+  }
+  store.save();
+}
+async function cloudOp(fn, failMsg){
+  if(!sb) return;
+  try{ await fn(); }
+  catch(e){ toast(failMsg + ' — kept on this device only'); }
+}
+
+/* ---------- instagram story share ---------- */
+function rr(x,px,py,w,h,r){
+  x.beginPath(); x.moveTo(px+r,py);
+  x.arcTo(px+w,py,px+w,py+h,r); x.arcTo(px+w,py+h,px,py+h,r);
+  x.arcTo(px,py+h,px,py,r); x.arcTo(px,py,px+w,py,r); x.closePath();
+}
+function wrapText(x,text,cx,y,maxW,lh){
+  const words=text.split(' '); let line='',yy=y;
+  for(const w of words){
+    const t=line?line+' '+w:w;
+    if(x.measureText(t).width>maxW && line){ x.fillText(line,cx,yy); line=w; yy+=lh; }
+    else line=t;
+  }
+  x.fillText(line,cx,yy); return yy+lh;
+}
+/* ---------- gold-foil story card art helpers ---------- */
+function ssSpaced(x,txt,cx,y,ls){
+  const chars=[...txt];
+  const widths=chars.map(ch=>x.measureText(ch).width);
+  const total=widths.reduce((a,b)=>a+b,0)+ls*(chars.length-1);
+  let pen=cx-total/2;
+  const prev=x.textAlign; x.textAlign='left';
+  chars.forEach((ch,i)=>{ x.fillText(ch,pen,y); pen+=widths[i]+ls; });
+  x.textAlign=prev;
+}
+function ssBubble(x,cx,cy,r,num,fill,F){
+  x.save();
+  x.beginPath(); x.arc(cx,cy,r,0,7);
+  if(fill>=1){
+    const g=x.createRadialGradient(cx-r*0.35,cy-r*0.4,r*0.1,cx,cy,r*1.05);
+    g.addColorStop(0,'#ffe082'); g.addColorStop(0.55,'#eab308'); g.addColorStop(1,'#c78d0e');
+    x.fillStyle=g;
+    x.shadowColor='rgba(234,179,8,.5)'; x.shadowBlur=16;
+    x.fill(); x.shadowBlur=0;
+  } else if(fill>0){
+    x.save(); x.clip();
+    const g=x.createLinearGradient(0,cy-r,0,cy+r);
+    g.addColorStop(0,'#ffe082'); g.addColorStop(1,'#cf9a12');
+    x.fillStyle=g;
+    const h=2*r*fill;
+    x.fillRect(cx-r,cy+r-h,2*r,h);
+    x.restore();
+  }
+  x.lineWidth=Math.max(2.5,r*0.13); x.strokeStyle='#c9a227'; x.stroke();
+  x.fillStyle=fill>0.45?'#ffffff':'#c9a227';
+  x.font='800 '+Math.round(r*0.62)+'px '+F;
+  x.textAlign='center'; x.textBaseline='middle';
+  x.fillText(String(num),cx,cy+2);
+  x.restore();
+}
+function ssGrain(x,n){
+  x.save();
+  for(let i=0;i<n;i++){
+    x.fillStyle='rgba(255,255,255,'+(Math.random()*0.05).toFixed(3)+')';
+    x.fillRect(Math.random()*1080,Math.random()*1920,1.6,1.6);
+  }
+  x.restore();
+}
+function ssVignette(x,a){
+  const g=x.createRadialGradient(540,960,1920*0.32,540,960,1920*0.72);
+  g.addColorStop(0,'rgba(0,0,0,0)');
+  g.addColorStop(1,'rgba(0,0,0,'+a+')');
+  x.fillStyle=g; x.fillRect(0,0,1080,1920);
+}
+// Build a 1080x1920 story image of current progress and hand it to the phone's share sheet
+function shareStory(){
+  const p=activeProfile(); if(!p){ toast('Add a tracker in Settings first'); return; }
+  const g=activeGoal();
+  const t=allocatedFor(p.id,g), pct=Math.min(100,Math.round(t/g*100));
+  // Gold foil champion theme: deep evergreen, gold-foil title, cream bubble card
+  const W=1080,H=1920, c=document.createElement('canvas'); c.width=W; c.height=H;
+  const x=c.getContext('2d');
+  if(!x || !c.toBlob){ toast('Sharing is not supported in this browser'); return; }
+  const F='system-ui,-apple-system,sans-serif';
+  const st=streakFor(p.id);
+  x.textAlign='center'; x.textBaseline='alphabetic';
+  // deep evergreen background + diagonal sheen
+  const bg=x.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#0e2f25'); bg.addColorStop(0.5,'#134233'); bg.addColorStop(1,'#081b15');
+  x.fillStyle=bg; x.fillRect(0,0,W,H);
+  const sheen=x.createLinearGradient(0,0,W,H);
+  sheen.addColorStop(0.42,'rgba(255,255,255,0)');
+  sheen.addColorStop(0.5,'rgba(255,255,255,.05)');
+  sheen.addColorStop(0.58,'rgba(255,255,255,0)');
+  x.fillStyle=sheen; x.fillRect(0,0,W,H);
+  // certificate frame
+  x.lineWidth=3; x.strokeStyle='#c9a227';
+  rr(x,36,36,1008,1848,34); x.stroke();
+  x.lineWidth=1; x.strokeStyle='rgba(201,162,39,.55)';
+  rr(x,54,54,972,1812,26); x.stroke();
+  [[90,90],[990,90],[90,1830],[990,1830]].forEach(([cx,cy])=>{
+    x.save(); x.translate(cx,cy); x.rotate(Math.PI/4);
+    x.fillStyle='#c9a227'; x.fillRect(-9,-9,18,18); x.restore();
+  });
+  // eyebrow
+  x.fillStyle='#e9d8a6'; x.font='600 37px '+F;
+  ssSpaced(x,'✦  OCTOBER CHALLENGE  ✦',W/2,208,10);
+  // gold-foil hero with auto-fit so it never overflows
+  let hs=198;
+  const hero=g+'-MILES';
+  const hfont=()=>'italic 900 '+hs+'px '+F;
+  x.font=hfont();
+  while(x.measureText(hero).width>920 && hs>80){ hs-=6; x.font=hfont(); }
+  x.save();
+  x.shadowColor='rgba(0,0,0,.55)'; x.shadowBlur=24; x.shadowOffsetY=8;
+  const fg=x.createLinearGradient(0,240,0,440);
+  fg.addColorStop(0,'#f9e79a'); fg.addColorStop(0.48,'#c9992b');
+  fg.addColorStop(0.55,'#a87e1c'); fg.addColorStop(1,'#f3d47a');
+  x.fillStyle=fg;
+  x.fillText(hero,W/2,408);
+  x.restore();
+  // divider
+  x.strokeStyle='rgba(201,162,39,.8)'; x.lineWidth=2;
+  x.beginPath(); x.moveTo(300,462); x.lineTo(500,462); x.moveTo(580,462); x.lineTo(780,462); x.stroke();
+  x.save(); x.translate(W/2,462); x.rotate(Math.PI/4);
+  x.fillStyle='#c9a227'; x.fillRect(-11,-11,22,22); x.restore();
+  x.fillStyle='rgba(233,216,166,.85)'; x.font='600 31px '+F;
+  ssSpaced(x,g+' MILES · ONE MONTH · FINISH STRONG',W/2,522,5);
+  // stat trio
+  const stats=[[fmt(t),'MILES'],[pct+'%','COMPLETE'],[st>0?('🔥'+st):'—','STREAK']];
+  stats.forEach(([val,lab],i)=>{
+    const cx=300+i*240;
+    x.fillStyle='#f5e9c8'; x.font='800 62px '+F;
+    x.fillText(val,cx,648);
+    x.fillStyle='#c9a227'; x.font='600 26px '+F;
+    ssSpaced(x,lab,cx,692,6);
+  });
+  x.strokeStyle='rgba(201,162,39,.35)'; x.lineWidth=1.5;
+  [420,660].forEach(px=>{ x.beginPath(); x.moveTo(px,590); x.lineTo(px,700); x.stroke(); });
+  x.fillStyle='rgba(233,216,166,.6)'; x.font='600 27px '+F;
+  ssSpaced(x,'RUN · WALK · HIKE · CYCLE · SWIM · ROW',W/2,748,4);
+  // cream bubble panel, sized to the goal
+  const cols=7, rows=Math.ceil(g/cols);
+  const availTop=796, availBot=1780;
+  const cellH=Math.min(122,(availBot-availTop-122)/rows);
+  const R=Math.min(44,cellH*0.36);
+  const cellW=888/cols;
+  const panelH=66+rows*cellH+56;
+  const panelTop=availTop+Math.max(0,(availBot-availTop-panelH)/2);
+  x.save();
+  rr(x,96,panelTop,888,panelH,44);
+  x.fillStyle='#faf5e8';
+  x.shadowColor='rgba(0,0,0,.5)'; x.shadowBlur=44; x.shadowOffsetY=16;
+  x.fill(); x.restore();
+  x.fillStyle='#8a6d1c'; x.font='800 30px '+F;
+  ssSpaced(x,p.name.toUpperCase()+' — ONE BUBBLE = ONE MILE',W/2,panelTop+44,6);
+  const gridTop=panelTop+96;
+  for(let i=1;i<=g;i++){
+    const r0=Math.floor((i-1)/cols), col=(i-1)%cols;
+    const cx=96+cellW*(col+0.5), cy=gridTop+r0*cellH;
+    ssBubble(x,cx,cy,R,i,Math.max(0,Math.min(1,t-(i-1))),F);
+  }
+  x.fillStyle='#c9a227'; x.font='600 30px '+F;
+  ssSpaced(x,st>0?'EVERY MILE COUNTS · KEEP GOING':'EVERY MILE COUNTS!',W/2,1832,6);
+  ssGrain(x,2000); ssVignette(x,0.22);
+  shareCanvas(c,'October Challenge','Leaderboard','october-leaderboard.png');
+}
+/* ---------- shared share flow + leaderboard story image ---------- */
+function shareCanvas(c,title,text,filename){
+  c.toBlob(blob=>{
+    if(!blob){ toast('Could not create image'); return; }
+    const file=new File([blob],filename,{type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:title,text:text}).catch(()=>{});
+    } else {
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download=filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      toast('Image saved — post it to your story');
+    }
+  },'image/png');
+}
+function lbPeople(){
+  // Not a competition: alphabetical, everyone with their own cards.
+  return store.data.profiles.slice()
+    .sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+}
+function shareLeaderboard(){
+  const people=lbPeople();
+  const W=1080,H=1920, c=document.createElement('canvas'); c.width=W; c.height=H;
+  const x=c.getContext('2d');
+  if(!x || !c.toBlob){ toast('Sharing is not supported in this browser'); return; }
+  const F='system-ui,-apple-system,sans-serif';
+  x.textAlign='center'; x.textBaseline='alphabetic';
+  // deep evergreen background + diagonal sheen
+  const bg=x.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#0e2f25'); bg.addColorStop(0.5,'#134233'); bg.addColorStop(1,'#081b15');
+  x.fillStyle=bg; x.fillRect(0,0,W,H);
+  const sheen=x.createLinearGradient(0,0,W,H);
+  sheen.addColorStop(0.42,'rgba(255,255,255,0)');
+  sheen.addColorStop(0.5,'rgba(255,255,255,.05)');
+  sheen.addColorStop(0.58,'rgba(255,255,255,0)');
+  x.fillStyle=sheen; x.fillRect(0,0,W,H);
+  // certificate frame
+  x.lineWidth=3; x.strokeStyle='#c9a227';
+  rr(x,36,36,1008,1848,34); x.stroke();
+  x.lineWidth=1; x.strokeStyle='rgba(201,162,39,.55)';
+  rr(x,54,54,972,1812,26); x.stroke();
+  [[90,90],[990,90],[90,1830],[990,1830]].forEach(([cx,cy])=>{
+    x.save(); x.translate(cx,cy); x.rotate(Math.PI/4);
+    x.fillStyle='#c9a227'; x.fillRect(-9,-9,18,18); x.restore();
+  });
+  // eyebrow
+  x.fillStyle='#e9d8a6'; x.font='600 37px '+F;
+  ssSpaced(x,'✦  OCTOBER CHALLENGE  ✦',W/2,208,10);
+  // gold-foil hero with auto-fit
+  let hs=168;
+  const hero='LEADERBOARD';
+  const hfont=()=>'italic 900 '+hs+'px '+F;
+  x.font=hfont();
+  while(x.measureText(hero).width>920 && hs>70){ hs-=6; x.font=hfont(); }
+  x.save();
+  x.shadowColor='rgba(0,0,0,.55)'; x.shadowBlur=24; x.shadowOffsetY=8;
+  const fg=x.createLinearGradient(0,240,0,440);
+  fg.addColorStop(0,'#f9e79a'); fg.addColorStop(0.48,'#c9992b');
+  fg.addColorStop(0.55,'#a87e1c'); fg.addColorStop(1,'#f3d47a');
+  x.fillStyle=fg;
+  x.fillText(hero,W/2,408);
+  x.restore();
+  // divider
+  x.strokeStyle='rgba(201,162,39,.8)'; x.lineWidth=2;
+  x.beginPath(); x.moveTo(300,462); x.lineTo(500,462); x.moveTo(580,462); x.lineTo(780,462); x.stroke();
+  x.save(); x.translate(W/2,462); x.rotate(Math.PI/4);
+  x.fillStyle='#c9a227'; x.fillRect(-11,-11,22,22); x.restore();
+  x.fillStyle='rgba(233,216,166,.85)'; x.font='600 31px '+F;
+  ssSpaced(x,'EVERYONE \u00B7 EVERY CARD',W/2,522,5);
+  // everyone, alphabetical — each person's cards with their own bars and cups
+  const list=people.slice(0,8);
+  const blocks=list.map(p=>({p, cards:enrolled(p).map(g=>({g, a:allocatedFor(p.id,g), cc:CHALLENGES[g]}))}));
+  let y=620;
+  blocks.forEach(b=>{
+    // name with color dot
+    x.beginPath(); x.arc(150,y+26,20,0,7); x.fillStyle=b.p.color||'#2b8fc4'; x.fill();
+    let ns=54; x.font='800 '+ns+'px '+F; x.textAlign='left';
+    while(x.measureText(b.p.name).width>600 && ns>26){ ns-=4; x.font='800 '+ns+'px '+F; }
+    const nw=x.measureText(b.p.name).width;
+    x.fillStyle='#f5e9c8'; x.fillText(b.p.name,185,y+44);
+    if(b.cards.every(c=>c.a>=c.g)){ x.fillText('\uD83C\uDFC6',205+nw,y+44); }
+    y+=88;
+    b.cards.forEach(c=>{
+      const done=c.a>=c.g, pc=Math.min(100,c.a/c.g*100);
+      x.beginPath(); x.arc(185,y+16,13,0,7); x.fillStyle=c.cc.solid; x.fill();
+      x.fillStyle='#e9d8a6'; x.font='600 34px '+F; x.textAlign='left';
+      x.fillText(c.cc.label,212,y+28);
+      const bx=420, bw=360;
+      x.fillStyle='rgba(255,255,255,.12)'; rr(x,bx,y+6,bw,20,10); x.fill();
+      if(pc>0){
+        const grd=x.createLinearGradient(bx,0,bx+bw,0);
+        grd.addColorStop(0,'#f9e79a'); grd.addColorStop(1,'#c9992b');
+        x.fillStyle=grd; rr(x,bx,y+6,Math.max(20,bw*pc/100),20,10); x.fill();
+      }
+      x.textAlign='right'; x.fillStyle='#e9d8a6'; x.font='800 34px '+F;
+      x.fillText(done?'\uD83C\uDFC6':fmt(c.a)+'/'+c.g,940,y+28);
+      y+=74;
+    });
+    y+=18;
+  });
+  if(!list.length){
+    x.fillStyle='rgba(245,233,200,.8)'; x.font='600 40px '+F; x.textAlign='center';
+    x.fillText('No trackers yet \u2014',W/2,760);
+    x.fillText('be the first to log miles!',W/2,820);
+  }
+  if(people.length>8){
+    x.fillStyle='rgba(233,216,166,.7)'; x.font='600 30px '+F; x.textAlign='center';
+    x.fillText('+ '+(people.length-8)+' more',W/2,y+40);
+  }
+  x.fillStyle='#c9a227'; x.font='600 30px '+F;
+  ssSpaced(x,'EVERY MILE COUNTS · KEEP GOING',W/2,1832,6);
+  ssGrain(x,2000); ssVignette(x,0.22);
+
+  c.toBlob(blob=>{
+    if(!blob){ toast('Could not create image'); return; }
+    const file=new File([blob],'october-challenge.png',{type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:'October Challenge',text:p.name+': '+fmt(t)+'/'+g+' mi'}).catch(()=>{});
+    } else {
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download='october-challenge.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      toast('Image saved — post it to your story');
+    }
+  },'image/png');
+}
+/* ---------- toast & confetti ---------- */
+let toastT=null;
+function toast(msg){
+  const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function confetti(){
+  const c=$('#confetti'), ctx=c.getContext('2d');
+  if(!ctx) return;
+  c.width=innerWidth; c.height=innerHeight; c.style.display='block';
+  const cols=['#2b8fc4','#6fce62','#ffd43b','#ff8787','#c9a227'];
+  const ps=Array.from({length:90},()=>({x:Math.random()*c.width, y:-20-Math.random()*c.height*.35,
+    s:4+Math.random()*6, c:cols[Math.floor(Math.random()*cols.length)],
+    vy:2+Math.random()*3.2, vx:-1.2+Math.random()*2.4, r:Math.random()*Math.PI}));
+  let f=0;
+  (function tick(){
+    ctx.clearRect(0,0,c.width,c.height);
+    for(const p of ps){ p.x+=p.vx; p.y+=p.vy; p.r+=.12;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r); ctx.fillStyle=p.c;
+      ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.62); ctx.restore(); }
+    if(++f<170) requestAnimationFrame(tick); else c.style.display='none';
+  })();
+}
+
+/* ---------- render ---------- */
+let selectedActivity='walk', editingId=null;
+
+const enrolled = p => {
+  const list = Array.isArray(p.challenges) ? p.challenges.filter(g=>CHALLENGES[g]) : [];
+  return (list.length?list:[50]).sort((a,b)=>a-b);
+};
+function activeGoal(){
+  const p=activeProfile(); if(!p) return 50;
+  const en=enrolled(p), sel=store.data.selected[p.id];
+  return en.includes(sel) ? sel : en[0];
+}
+const DISPLAY_OPTS=[['bubbles','Mile bubbles'],['verse','Verse card'],['coach','Game plan']];
+function renderDisplayToggles(){
+  const el=$('#displayToggles'); if(!el) return;
+  const d=store.data.display||{};
+  el.innerHTML=DISPLAY_OPTS.map(([k,label])=>
+    `<label class="switchrow"><span>${label}</span><span class="switch"><input type="checkbox" data-dk="${k}"${d[k]?' checked':''}><span class="sl"></span></span></label>`
+  ).join('');
+  el.querySelectorAll('input[data-dk]').forEach(cb=>cb.onchange=()=>{
+    store.data.display[cb.dataset.dk]=cb.checked; store.save(); render();
+  });
+}
+function applyDisplay(){
+  const d=store.data.display||{};
+  $('#bubblesCard').style.display=d.bubbles?'':'none';
+  $('#verseCard').style.display=d.verse===false?'none':'';
+  $('#coachCard').style.display=d.coach===false?'none':'';
+}
+function render(){
+  renderTabs(); renderGoalChips(); renderNudge(); renderVerse(); renderStats(); renderCoach(); renderBubbles(); renderLeaderboard(); renderEntries(); renderProfileList(); renderDisplayToggles(); applyDisplay();
+}
+function renderTabs(){
+  const el=$('#tabs');
+  el.innerHTML = store.data.profiles.map(p=>{
+    const t=totalFor(p.id);
+    return `<button class="tab${p.id===store.data.activeProfileId?' active':''}" data-pid="${p.id}">
+      <div class="nm"><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span>${esc(p.name)}</div>
+      <div class="mi">${fmt(t)} mi total</div></button>`;
+  }).join('') || `<div class="empty">Add a tracker in Settings ⚙</div>`;
+  el.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{ store.data.activeProfileId=b.dataset.pid; store.save(); render(); });
+}
+function renderGoalChips(){
+  const p=activeProfile(), el=$('#goalChips');
+  if(!p){ el.innerHTML=''; return; }
+  const g=activeGoal();
+  el.innerHTML = enrolled(p).map(x=>{
+    const c=CHALLENGES[x];
+    return `<button type="button" class="chip gchip ${c.css}${x===g?' active':''}" data-goal="${x}"><span class="dot" style="background:${c.solid}"></span>${c.label}</button>`;
+  }).join('');
+  el.querySelectorAll('[data-goal]').forEach(b=>b.onclick=()=>{
+    store.data.selected[p.id]=Number(b.dataset.goal); store.save(); render();
+  });
+}
+function renderNudge(){
+  const p=activeProfile(), el=$('#nudge');
+  if(!p){ el.style.display='none'; return; }
+  const loggedToday=entriesFor(p.id).some(e=>e.date===todayStr());
+  const hr=new Date().getHours();
+  if(!loggedToday && hr>=12){
+    el.style.display='block';
+    el.innerHTML=`⏰ No miles logged yet today, ${esc(p.name)} — even a 1-mile walk keeps the streak alive. <a href="#" id="nudgeLog">Log them now</a>.`;
+    $('#nudgeLog').onclick=e=>{ e.preventDefault(); cancelEdit(); openLog(); };
+  } else el.style.display='none';
+}
+function renderCoach(){
+  const p=activeProfile(), g=activeGoal(), CH=CHALLENGES[g];
+  const box=$('#coach');
+  if(!p){ box.innerHTML=''; $('#coachGoal').textContent=''; return; }
+  $('#coachGoal').textContent='· '+CH.label;
+  const t=allocatedFor(p.id,g);
+  const now=new Date();
+  const inOct=now.getFullYear()===2026 && now.getMonth()===9;
+  const day=inOct?now.getDate():0;
+  const dl=daysLeft();
+  const remaining=Math.max(0, g-t);
+  if(t>=g){
+    box.innerHTML=`<div class="coach-line coach-big coach-ok">Challenge complete — ${g} miles done! Time to celebrate. 🎉</div>`;
+    return;
+  }
+  if(!inOct || dl<=0){
+    box.innerHTML=`<div class="coach-line">The challenge window has ended.</div>`;
+    return;
+  }
+  const needed=remaining/dl;
+  const expected=g*day/31, diff=t-expected;
+  let verdict, cls;
+  if(diff>=0.5){ verdict=`You're <b>${fmt(diff)} mi ahead of pace</b> — nice cushion.`; cls='coach-ok'; }
+  else if(diff<=-0.5){ verdict=`You're <b>${fmt(-diff)} mi behind pace</b>.`; cls='coach-warn'; }
+  else { verdict=`You're right <b>on pace</b>.`; cls='coach-mid'; }
+  const en=enrolled(p);
+  box.innerHTML=`
+    <div class="coach-line coach-big ${cls}">${verdict}</div>
+    <div class="coach-line">To finish the ${g}-mile by Oct 31: average <b>${fmt(needed)} mi/day</b> (about <b>${fmt(needed*7)} mi/week</b>). That's ${fmt(remaining)} miles over ${dl} day${dl===1?'':'s'}.</div>
+    ${diff<=-2?`<div class="coach-line">Catch-up idea: one <b>${fmt(Math.min(remaining, needed+2))}-mile</b> session this week would erase most of the gap.</div>`:''}
+    ${en.length>1?`<div class="coach-line" style="color:var(--muted);font-size:13px">Every mile counts once — the first ${en[0]} fill the ${en[0]}-mile, then the rest flow to the next challenge.</div>`:''}`;
+}
+function daysLeft(){
+  const n=new Date();
+  if(n.getFullYear()<2026 || (n.getFullYear()===2026 && n.getMonth()<9)) return 31;
+  if(n.getFullYear()>2026 || n.getMonth()>9) return 0;
+  return Math.max(0, 31 - n.getDate() + 1);
+}
+function streakFor(pid){
+  const days=new Set(entriesFor(pid).filter(e=>Number(e.miles)>0).map(e=>e.date));
+  let d=new Date(), s=0;
+  if(!days.has(dateStr(d))) d.setDate(d.getDate()-1);
+  while(days.has(dateStr(d))){ s++; d.setDate(d.getDate()-1); }
+  return s;
+}
+function bestDayFor(pid){
+  const by={};
+  for(const e of entriesFor(pid)) by[e.date]=(by[e.date]||0)+Number(e.miles);
+  return Math.max(0,...Object.values(by));
+}
+function renderStats(){
+  const p=activeProfile(), g=activeGoal(), CH=CHALLENGES[g];
+  const en = p ? enrolled(p) : [50];
+  const multi = en.length>1;
+  // Progress is measured against the TOTAL commitment (sum of enrolled
+  // challenges), so multi-card users see their real overall progress.
+  const t = p ? totalFor(p.id) : 0;
+  const commit = p ? commitment(p) : 50;
+  const barCH = CHALLENGES[en[0]];
+  $('#statsTitle').textContent = p ? (multi ? `${p.name}'s progress` : `${p.name}'s progress · ${CH.label}`) : 'Progress';
+  const pct = commit>0 ? Math.min(100, t/commit*100) : 0;
+  $('#totalMi').textContent = fmt(t);
+  $('#goalMi').textContent = '/ '+commit+' mi';
+  const bf=$('#barFill'); bf.style.width=pct+'%'; bf.style.background=barCH.grad;
+  $('#pctTxt').textContent = Math.round(pct)+'% complete';
+  $('#stRemain').textContent = fmt(Math.max(0, commit-t));
+  const dl = daysLeft();
+  $('#stPace').textContent = dl>0 ? fmt(Math.max(0,commit-t)/dl) : '—';
+  $('#stStreak').textContent = p ? streakFor(p.id) : 0;
+  $('#stBest').textContent = p ? fmt(bestDayFor(p.id)) : 0;
+  $('#completeBadge').innerHTML = t>=commit
+    ? `<div class="complete-badge">🎉 ${commit} MILES — CHALLENGE COMPLETE! 🎉</div>` : '';
+  // Per-card breakdown for multi-card users
+  const bd=$('#goalBreakdown');
+  if(bd){
+    bd.innerHTML = p && multi ? en.map(x=>{
+      const a=allocatedFor(p.id,x), cc=CHALLENGES[x], pc=Math.min(100,a/x*100);
+      return `<div class="bdrow"><span class="bl"><span class="dot" style="background:${cc.solid}"></span>${cc.label}</span>`
+        +`<div class="bdbar"><div style="width:${pc}%;background:${cc.grad}"></div></div>`
+        +`<span class="bt">${fmt(a)}/${x}</span></div>`;
+    }).join('') : '';
+  }
+  if(p){
+    const marks=[{k:'half', at:commit/2, msg:`${fmt(commit/2)} miles — halfway there!`},
+                 {k:'full', at:commit,   msg:`${commit} miles! Challenge complete!`}];
+    for(const m of marks){
+      const key=p.id+':total:'+m.k;
+      if(t>=m.at && !store.data.milestones[key]){
+        store.data.milestones[key]=true; store.save(); confetti(); toast(m.msg);
+      }
+    }
+  }
+}
+function renderBubbles(){
+  if(store.data.display && store.data.display.bubbles===false) return;
+  const p=activeProfile(), g=activeGoal(), CH=CHALLENGES[g];
+  const t=p?allocatedFor(p.id,g):0;
+  const whole=Math.floor(t), frac=t-whole;
+  $('#bubbles').className='bubbles '+CH.css;
+  let html='';
+  for(let i=1;i<=g;i++){
+    const tag=`data-bub="${i}"`;
+    if(i<=whole) html+=`<div class="bub done ${CH.css}" ${tag}>${i}</div>`;
+    else if(i===whole+1 && frac>0.009)
+      html+=`<div class="bub" ${tag} style="background:linear-gradient(to top, #bfe3f5 ${Math.round(frac*100)}%, #fffdf4 ${Math.round(frac*100)}%)">${i}</div>`;
+    else html+=`<div class="bub" ${tag}>${i}</div>`;
+  }
+  $('#bubbles').innerHTML=html;
+  $('#bubbles').querySelectorAll('.bub').forEach(b=>b.onclick=()=>bubbleTap(Number(b.dataset.bub)));
+}
+// Tap a bubble to log miles up to that number (uses the selected activity, dated today)
+function bubbleTap(i){
+  const p=activeProfile(); if(!p){ toast('Add a tracker in Settings first'); return; }
+  const g=activeGoal();
+  const t=allocatedFor(p.id,g);
+  if(i<=t){ toast('That mile is already done — nice!'); return; }
+  const add=Math.round((i-t)*10)/10;
+  const e={id:uid(), profileId:p.id, date:todayStr(), activity:selectedActivity, miles:add, note:''};
+  store.data.entries.push(e); store.save(); render();
+  toast(`${fmt(add)} mi ${ACTIVITIES[selectedActivity].label.toLowerCase()} logged`);
+  cloudOp(()=>sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:null}), 'Add not synced');
+}
+function renderLeaderboard(){
+  $('#lbTitle').textContent='Leaderboard';
+  const people=lbPeople();
+  $('#leaderboard').innerHTML = people.map(p=>{
+    const en=enrolled(p);
+    const allDone=en.every(g=>allocatedFor(p.id,g)>=g);
+    const cards=en.map(g=>{
+      const a=allocatedFor(p.id,g), cc=CHALLENGES[g], pc=Math.min(100,a/g*100);
+      const done=a>=g;
+      return `<div class="lbcard"><span class="bl"><span class="dot" style="background:${cc.solid}"></span>${cc.label}</span>`
+        +`<div class="bdbar"><div style="width:${pc}%;background:${cc.grad}"></div></div>`
+        +`<span class="bt">${done?'🏆':fmt(a)+'/'+g}</span></div>`;
+    }).join('');
+    return `<div class="lbperson"><div class="lbname"><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span>${esc(p.name)}${allDone?' 🏆':''}</div>${cards}</div>`;
+  }).join('') || `<div class="empty">No trackers yet.</div>`;
+}
+function openLb(){ $('#lbModal').classList.add('open'); document.body.style.overflow='hidden'; }
+function closeLb(){ $('#lbModal').classList.remove('open'); document.body.style.overflow=''; }
+function renderEntries(){
+  const p=activeProfile();
+  const list = p ? entriesFor(p.id).sort((a,b)=> b.date.localeCompare(a.date)) : [];
+  $('#entries').innerHTML = list.slice(0,30).map(e=>{
+    const a=ACTIVITIES[e.activity]||{label:e.activity,icon:'•'};
+    return `<div class="entry"><div class="eicon">${a.icon}</div>
+      <div class="einfo"><div class="t">${a.label}${e.note?` — ${esc(e.note)}`:''}</div>
+      <div class="d">${prettyDate(e.date)}</div></div>
+      <div class="emi">${fmt(e.miles)} mi</div>
+      <button class="eact" data-edit="${e.id}" aria-label="Edit">✎</button>
+      <button class="eact" data-del="${e.id}" aria-label="Delete">🗑</button></div>`;
+  }).join('') || `<div class="empty">No miles logged yet — add your first one above.</div>`;
+  $('#entries').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteEntry(b.dataset.del));
+  $('#entries').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>startEdit(b.dataset.edit));
+}
+function renderProfileList(){
+  $('#profileList').innerHTML = store.data.profiles.map((p,i)=>{
+    const en=enrolled(p);
+    const ch=[20,50,100].map(x=>{
+      const c=CHALLENGES[x], on=en.includes(x);
+      return `<button class="cbtn ${c.css}${on?' on':''}" data-ch="${p.id}:${x}">${x}</button>`;
+    }).join('');
+    return `<div style="border-bottom:1px solid var(--line);padding:10px 0">
+      <div class="prow" style="border-bottom:none;padding:0 0 2px"><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span>
+      <span class="nm">${esc(p.name)}</span>
+      <button data-rn="${p.id}">Rename</button>
+      ${store.data.profiles.length>1?`<button data-rm="${p.id}">Remove</button>`:''}</div>
+      <div class="chrow"><span class="cl">CHALLENGES</span>${ch}</div></div>`;
+  }).join('');
+  $('#profileList').querySelectorAll('[data-rn]').forEach(b=>b.onclick=()=>{
+    const p=store.data.profiles.find(x=>x.id===b.dataset.rn);
+    const n=prompt('Name for this tracker:', p.name);
+    if(n && n.trim()){ p.name=n.trim().slice(0,24); store.save(); render();
+      cloudOp(()=>sb.from('challenge_profiles').update({name:p.name}).eq('id',p.id), 'Rename not synced'); }
+  });
+  $('#profileList').querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{
+    const p=store.data.profiles.find(x=>x.id===b.dataset.rm);
+    if(!confirm(`Remove ${p.name} and all their entries?`)) return;
+    store.data.entries=store.data.entries.filter(e=>e.profileId!==p.id);
+    store.data.profiles=store.data.profiles.filter(x=>x.id!==p.id);
+    if(store.data.activeProfileId===p.id) store.data.activeProfileId=store.data.profiles[0].id;
+    store.save(); render();
+    cloudOp(()=>sb.from('challenge_profiles').delete().eq('id',p.id), 'Remove not synced');
+  });
+  $('#profileList').querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{
+    const parts=b.dataset.ch.split(':'), pid=parts[0], gx=Number(parts[1]);
+    const p=store.data.profiles.find(x=>x.id===pid); if(!p) return;
+    let en=enrolled(p);
+    if(en.includes(gx)){
+      if(en.length===1){ toast('Keep at least one challenge'); return; }
+      en=en.filter(y=>y!==gx);
+    } else en=[...en,gx].sort((a,b)=>a-b);
+    p.challenges=en; store.save(); render();
+    cloudOp(()=>sb.from('challenge_profiles').update({challenges:en}).eq('id',p.id), 'Challenges not synced');
+  });
+}
+
+/* ---------- form ---------- */
+function renderChips(){
+  $('#actChips').innerHTML = Object.entries(ACTIVITIES).map(([k,a])=>
+    `<button type="button" class="chip${k===selectedActivity?' active':''}" data-act="${k}"><span class="aicon">${a.icon}</span> ${a.label}</button>`).join('');
+  $('#actChips').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+    selectedActivity=c.dataset.act; renderChips();
+    const ic=$('#actChips .chip.active .aicon');
+    if(ic){ void ic.offsetWidth; ic.classList.add('pop'); }
+  });
+}
+function startEdit(id){
+  const e=store.data.entries.find(x=>x.id===id); if(!e) return;
+  editingId=id; selectedActivity=e.activity;
+  $('#fDate').value=e.date; $('#fMiles').value=e.miles; $('#fNote').value=e.note||'';
+  $('#formTitle').textContent='Edit entry'; $('#submitBtn').textContent='Save changes';
+  $('#cancelEdit').style.display='block'; renderChips();
+  openLog();
+}
+function cancelEdit(){
+  editingId=null; $('#logForm').reset(); $('#fDate').value=todayStr();
+  $('#formTitle').textContent='Log miles'; $('#submitBtn').textContent='Add miles';
+  $('#cancelEdit').style.display='none';
+}
+function openLog(){ $('#logModal').classList.add('open'); document.body.style.overflow='hidden'; }
+function closeLog(){ $('#logModal').classList.remove('open'); document.body.style.overflow=''; }
+/* ---------- first-launch welcome setup ---------- */
+let setupChallenges=[50];
+function renderSetupChips(){
+  $('#setupChips').innerHTML=[20,50,100].map(g=>
+    `<button type="button" class="chip${setupChallenges.includes(g)?' active':''}" data-g="${g}">${g}-Mile</button>`).join('');
+  $('#setupChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{
+    const g=+b.dataset.g;
+    if(setupChallenges.includes(g)){
+      if(setupChallenges.length>1) setupChallenges=setupChallenges.filter(x=>x!==g);
+    } else setupChallenges.push(g);
+    renderSetupChips();
+  });
+}
+function openSetup(){
+  setupChallenges=[50];
+  const p=activeProfile();
+  $('#setupName').value = (p && p.name && p.name!=='Pat') ? p.name : '';
+  renderSetupChips();
+  $('#setupModal').classList.add('open'); document.body.style.overflow='hidden';
+}
+function finishSetup(){
+  const p=activeProfile(); if(!p) return;
+  const nm=$('#setupName').value.trim();
+  p.name=(nm||'Me').slice(0,30);
+  p.challenges=setupChallenges.slice().sort((a,b)=>a-b);
+  store.data.selected[p.id]=p.challenges[0];
+  store.data.onboarded=true;
+  store.save();
+  $('#setupModal').classList.remove('open'); document.body.style.overflow='';
+  render();
+  setTimeout(maybeInstallPrompt, 600);
+}
+function maybeSetup(){ if(!store.data.onboarded) openSetup(); }
+/* ---------- install prompt (Android one-tap, iOS guided steps) ---------- */
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredPrompt=e; });
+function isStandalone(){
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone===true;
+}
+function isIOS(){ return /iphone|ipad|ipod/i.test(window.navigator.userAgent||''); }
+function installSeen(){ try{ return localStorage.getItem('jct50-install')==='done'; }catch(e){ return true; } }
+function markInstallSeen(){ try{ localStorage.setItem('jct50-install','done'); }catch(e){} }
+function openInstall(){
+  if(isStandalone()){ toast('Already installed — look for the October icon on your home screen'); return; }
+  const steps=$('#installSteps'), go=$('#installGo');
+  if(deferredPrompt){
+    // Android/Chrome: real one-tap install
+    $('#installHint').textContent='Add October Challenge to your home screen for one-tap access — just like a real app.';
+    steps.innerHTML='';
+    go.style.display=''; go.textContent='Install app';
+  } else if(isIOS()){
+    // iPhone: guided manual steps
+    $('#installHint').textContent='On iPhone it takes 3 quick taps:';
+    steps.innerHTML='<div style="background:#f6fafd;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0;font-size:15px;line-height:2">'
+      +'<div>1️⃣ Tap the <b>Share</b> button in Safari <span style="font-size:18px">⎙</span><br><span style="color:var(--muted);font-size:13px">(the square with an arrow pointing up, at the bottom)</span></div>'
+      +'<div>2️⃣ Scroll down and tap <b>Add to Home Screen</b></div>'
+      +'<div>3️⃣ Tap <b>Add</b> in the top-right corner</div></div>';
+    go.style.display='none';
+  } else {
+    $('#installHint').textContent='Use your browser\u2019s \u201cInstall\u201d or \u201cAdd to Home Screen\u201d option to keep October Challenge one tap away.';
+    steps.innerHTML='';
+    go.style.display='none';
+  }
+  $('#installModal').classList.add('open'); document.body.style.overflow='hidden';
+}
+function closeInstall(){ $('#installModal').classList.remove('open'); document.body.style.overflow=''; }
+function maybeInstallPrompt(){ if(!isStandalone() && !installSeen()) openInstall(); }
+async function submitForm(){
+  const p=activeProfile();
+  if(!p){ toast('Add a tracker in Settings first'); return; }
+  const date=$('#fDate').value, miles=parseFloat($('#fMiles').value), note=$('#fNote').value.trim();
+  if(!date || !inChallenge(date)){ toast('Pick a date in October 2026'); return; }
+  if(!(miles>0) || miles>100){ toast('Enter miles between 0.1 and 100'); return; }
+  if(editingId){
+    const e=store.data.entries.find(x=>x.id===editingId);
+    if(!e){ cancelEdit(); toast('That entry no longer exists'); return; }
+    Object.assign(e,{date, activity:selectedActivity, miles, note});
+    store.save(); render(); cancelEdit(); toast('Entry updated');
+    cloudOp(()=>sb.from('challenge_entries').update({entry_date:date, activity:selectedActivity, miles, note:note||null}).eq('id',e.id), 'Edit not synced');
+  } else {
+    const e={id:uid(), profileId:p.id, date, activity:selectedActivity, miles, note};
+    store.data.entries.push(e); store.save(); render();
+    $('#fMiles').value=''; $('#fNote').value='';
+    toast(`${fmt(miles)} mi ${ACTIVITIES[selectedActivity].label.toLowerCase()} logged`);
+    cloudOp(()=>sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:e.note||null}), 'Add not synced');
+  }
+  closeLog();
+}
+async function deleteEntry(id){
+  if(!confirm('Delete this entry?')) return;
+  store.data.entries=store.data.entries.filter(e=>e.id!==id);
+  if(id===editingId) cancelEdit();
+  store.save(); render(); toast('Entry deleted');
+  cloudOp(()=>sb.from('challenge_entries').delete().eq('id',id), 'Delete not synced');
+}
+
+/* ---------- settings / cloud ---------- */
+function updateCloudUI(){
+  const on=!!sb;
+  $('#cloudRefresh').style.display=on?'block':'none';
+  $('#cloudDisconnect').style.display=on?'block':'none';
+  const st=$('#cloudStatus');
+  if(on){ st.textContent='● Connected — changes sync to Supabase'; st.className='status ok'; }
+  else if(store.data.supabase.url){ st.textContent='○ Not connected'; st.className='status'; }
+  else { st.textContent=''; st.className='status'; }
+}
+async function connectCloud(){
+  const url=$('#sbUrl').value.trim().replace(/\/$/,''), key=$('#sbKey').value.trim();
+  if(!url||!key){ toast('Enter your Supabase URL and anon key'); return; }
+  if(!window.supabase){ toast('Supabase library failed to load — check connection'); return; }
+  $('#cloudStatus').textContent='Connecting…'; $('#cloudStatus').className='status';
+  try{
+    const t=window.supabase.createClient(url,key);
+    const {error}=await t.from('challenge_profiles').select('id',{head:true, count:'exact'});
+    if(error) throw error;
+    store.data.supabase={url,key}; store.save();
+    sb=t; await pullFromCloud(); render(); updateCloudUI();
+    toast('Connected — synced with cloud');
+  }catch(err){
+    $('#cloudStatus').textContent='Could not connect. Did you run supabase-schema.sql? '+(err.message||'');
+    $('#cloudStatus').className='status err';
+  }
+}
+
+/* ---------- init ---------- */
+function init(){
+  store.load();
+  $('#fDate').value=todayStr();
+  renderChips();
+  $('#submitBtn').onclick=submitForm;
+  $('#openLogBtn').onclick=()=>{ cancelEdit(); openLog(); };
+  $('#openLbBtn').onclick=()=>{ renderLeaderboard(); openLb(); };
+  $('#closeLb').onclick=closeLb;
+  $('#lbModal').onclick=e=>{ if(e.target.id==='lbModal') closeLb(); };
+  $('#closeLog').onclick=()=>{ cancelEdit(); closeLog(); };
+  $('#logModal').onclick=e=>{ if(e.target.id==='logModal'){ cancelEdit(); closeLog(); } };
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if($('#logModal').classList.contains('open')){ cancelEdit(); closeLog(); } if($('#lbModal').classList.contains('open')) closeLb(); if($('#installModal').classList.contains('open')) closeInstall(); } });
+  $('#cancelEdit').onclick=cancelEdit;
+  $('#mMinus').onclick=()=>{ const f=$('#fMiles'); f.value=Math.max(0,(parseFloat(f.value)||0)-0.5).toFixed(1).replace(/\.0$/,''); };
+  $('#mPlus').onclick=()=>{ const f=$('#fMiles'); f.value=((parseFloat(f.value)||0)+0.5).toFixed(1).replace(/\.0$/,''); };
+  $('#storyBtn').onclick=shareLeaderboard;
+  $('#myStoryBtn').onclick=shareStory;
+  $('#settingsBtn').onclick=()=>{ $('#sbUrl').value=store.data.supabase.url||''; $('#sbKey').value=store.data.supabase.key||'';
+    renderProfileList(); $('#settingsModal').classList.add('open'); };
+  $('#closeSettings').onclick=()=>$('#settingsModal').classList.remove('open');
+  $('#settingsModal').onclick=e=>{ if(e.target.id==='settingsModal') e.target.classList.remove('open'); };
+  $('#addProfile').onclick=()=>{
+    const n=prompt("Tracker's name:",'');
+    if(n && n.trim()){
+      const p={id:uid(), name:n.trim().slice(0,24), color:COLORS[store.data.profiles.length%COLORS.length], challenges:[50]};
+      store.data.profiles.push(p); store.data.activeProfileId=p.id; store.save(); render();
+      cloudOp(()=>sb.from('challenge_profiles').insert({id:p.id,name:p.name,color:p.color,challenges:p.challenges}), 'Add not synced');
+    }
+  };
+  $('#cloudConnect').onclick=connectCloud;
+  $('#cloudRefresh').onclick=async()=>{ try{ await pullFromCloud(); render(); toast('Refreshed from cloud'); }
+    catch(e){ toast('Refresh failed: '+(e.message||e)); } };
+  $('#cloudDisconnect').onclick=()=>{ store.data.supabase={url:'',key:''}; store.save(); sb=null; updateCloudUI(); toast('Disconnected — using this device only'); };
+  $('#setupStart').onclick=finishSetup;
+  $('#installGo').onclick=async()=>{
+    if(deferredPrompt){
+      deferredPrompt.prompt();
+      try{ await deferredPrompt.userChoice; }catch(e){}
+      deferredPrompt=null;
+    }
+    markInstallSeen(); closeInstall();
+  };
+  $('#installLater').onclick=()=>{ markInstallSeen(); closeInstall(); };
+  $('#installRow').onclick=openInstall;
+  $('#installModal').onclick=e=>{ if(e.target.id==='installModal') closeInstall(); };
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+  }
+  maybeSetup();
+  $('#wipeData').onclick=()=>{
+    if(!confirm('Erase ALL local data (profiles + entries)? This cannot be undone.')) return;
+    localStorage.removeItem(LS_KEY); store.load(); initSupabase(); render(); maybeSetup(); toast('Local data erased');
+  };
+  initSupabase();
+  render();
+  setInterval(renderVerse, 60000);
+  if(sb) pullFromCloud().then(render).catch(()=>{});
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

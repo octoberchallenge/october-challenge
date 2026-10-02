@@ -1004,19 +1004,7 @@ function shareLeaderboard(){
   ssSpaced(x,'EVERY MILE COUNTS · KEEP GOING',W/2,1832,6);
   ssGrain(x,2000); ssVignette(x,0.22);
 
-  c.toBlob(blob=>{
-    if(!blob){ toast('Could not create image'); return; }
-    const file=new File([blob],'october-challenge.png',{type:'image/png'});
-    if(navigator.canShare && navigator.canShare({files:[file]})){
-      navigator.share({files:[file],title:'October Challenge',text:p.name+': '+fmt(t)+'/'+g+' mi'}).catch(()=>{});
-    } else {
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob); a.download='october-challenge.png';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-      toast('Image saved — post it to your story');
-    }
-  },'image/png');
+  shareCanvas(c,'October Challenge','Leaderboard','october-leaderboard.png');
 }
 /* ---------- toast & confetti ---------- */
 let toastT=null;

@@ -286,12 +286,18 @@
 <div class="modal" id="setupModal">
   <div class="sheet">
     <h2>Welcome! 🎉</h2>
-    <p class="hint">Set up your tracker in 10 seconds. Your data stays on this phone.</p>
+    <p class="hint">Set up your tracker in 10 seconds.</p>
     <label class="fl" for="setupName">Your name</label>
     <input type="text" id="setupName" placeholder="Your name" maxlength="30" autocomplete="off">
     <label class="fl">Challenge cards</label>
     <div class="chips" id="setupChips"></div>
     <p class="hint" style="margin-top:8px">Pick one, two, or all three — your miles fill them in order.</p>
+    <label class="fl">Who sees my miles?</label>
+    <div class="chips" id="setupShare">
+      <button type="button" class="chip on" data-share="join">🏆 Join the leaderboard</button>
+      <button type="button" class="chip" data-share="private">🔒 Just me</button>
+    </div>
+    <p class="hint" style="margin-top:8px" id="setupShareHint">Your name and cards show on the shared board.</p>
     <button class="btn" id="setupStart" type="button">Start tracking</button>
   </div>
 </div>
@@ -340,6 +346,8 @@
     <div id="displayToggles"></div>
 
     <h3>Cloud sync (Supabase)</h3>
+    <label class="switchrow"><span>🏆 Shared leaderboard</span><span class="switch"><input type="checkbox" id="shareToggle"><span class="sl"></span></span></label>
+    <p class="hint" id="shareHint"></p>
     <p class="hint">This app comes pre-connected to the shared board — your miles sync automatically. The invite link below lets others join with one tap.</p>
     <label class="fl" for="sbUrl">Supabase URL</label>
     <input type="url" id="sbUrl" placeholder="https://xyzcompany.supabase.co" autocomplete="off">
@@ -436,7 +444,7 @@ const store = {
     try{ this.data = JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ this.data=null; }
     if(!this.data || !Array.isArray(this.data.profiles)){
       this.data = { profiles:[{id:uid(), name:'Pat', color:COLORS[0], challenges:[50]}],
-        entries:[], activeProfileId:null, supabase:{url:SB_DEFAULTS.url, key:SB_DEFAULTS.key}, milestones:{}, selected:{}, display:{bubbles:true, verse:true, coach:true}, onboarded:false, v:7 };
+        entries:[], activeProfileId:null, supabase:{url:SB_DEFAULTS.url, key:SB_DEFAULTS.key}, shareBoard:true, milestones:{}, selected:{}, display:{bubbles:true, verse:true, coach:true}, onboarded:false, v:7 };
     }
     if(!this.data.v){
       this.data.v = 2;
@@ -492,6 +500,12 @@ const store = {
       this.data.v = 7;
       this.save();
     }
+    if(this.data.v < 8){
+      // v8: explicit leaderboard sharing choice — existing users stay shared.
+      if(this.data.shareBoard===undefined) this.data.shareBoard = true;
+      this.data.v = 8;
+      this.save();
+    }
     if(!this.data.milestones) this.data.milestones = {};
     if(!this.data.supabase) this.data.supabase = {url:'',key:''};
     if(!this.data.selected) this.data.selected = {};
@@ -529,6 +543,7 @@ const SB_DEFAULTS = {
 let sb = null;
 function initSupabase(){
   sb = null;
+  if(store.data.shareBoard===false){ updateCloudUI(); return; }
   const cfg = store.data.supabase;
   if(cfg && cfg.url && cfg.key && window.supabase){
     try{ sb = window.supabase.createClient(cfg.url, cfg.key); }catch(e){ sb=null; }
@@ -594,6 +609,12 @@ async function copyInviteLink(){
   try{ await navigator.clipboard.writeText(link); toast('Invite link copied — share it!'); }
   catch(e){
     prompt('Copy your invite link:', link);
+  }
+}
+async function deleteMyCloudData(){
+  if(!sb) return;
+  for(const p of store.data.profiles){
+    try{ await sb.from('challenge_profiles').delete().eq('id',p.id); }catch(e){}
   }
 }
 async function cloudOp(fn, failMsg){
@@ -1227,8 +1248,18 @@ function renderSetupChips(){
     renderSetupChips();
   });
 }
+let setupShare='join';
+function renderSetupShare(){
+  document.querySelectorAll('#setupShare .chip').forEach(b=>{
+    b.classList.toggle('on', b.dataset.share===setupShare);
+    b.onclick=()=>{ setupShare=b.dataset.share; renderSetupShare(); };
+  });
+  $('#setupShareHint').textContent = setupShare==='join'
+    ? 'Your name and cards show on the shared board.'
+    : 'Private — your miles stay on this phone only.';
+}
 function openSetup(){
-  setupChallenges=[50];
+  setupChallenges=[50]; setupShare='join'; renderSetupShare();
   const p=activeProfile();
   $('#setupName').value = (p && p.name && p.name!=='Pat') ? p.name : '';
   renderSetupChips();
@@ -1241,8 +1272,11 @@ function finishSetup(){
   p.challenges=setupChallenges.slice().sort((a,b)=>a-b);
   store.data.selected[p.id]=p.challenges[0];
   store.data.onboarded=true;
+  store.data.shareBoard=(setupShare==='join');
   store.save();
+  initSupabase();
   cloudOp(()=>sb.from('challenge_profiles').upsert({id:p.id, name:p.name, color:p.color, challenges:p.challenges}), 'Profile not synced');
+  if(sb && store.data.onboarded) pullFromCloud().then(render).catch(()=>{});
   $('#setupModal').classList.remove('open'); document.body.style.overflow='';
   render();
   setTimeout(maybeInstallPrompt, 600);
@@ -1318,7 +1352,13 @@ function updateCloudUI(){
   $('#cloudInvite').style.display=on?'block':'none';
   $('#cloudDisconnect').style.display=on?'block':'none';
   const st=$('#cloudStatus');
-  if(on){ st.textContent='● Connected — changes sync to Supabase'; st.className='status ok'; }
+  const tg=$('#shareToggle'); if(tg) tg.checked = store.data.shareBoard!==false;
+  const sh=$('#shareHint');
+  if(sh) sh.textContent = store.data.shareBoard===false
+    ? 'Private — your miles stay on this phone only.'
+    : 'Your name and cards show on the shared board.';
+  if(store.data.shareBoard===false){ st.textContent='○ Private mode — this device only'; st.className='status'; }
+  else if(on){ st.textContent='● On the shared leaderboard'; st.className='status ok'; }
   else if(store.data.supabase.url){ st.textContent='○ Not connected'; st.className='status'; }
   else { st.textContent=''; st.className='status'; }
 }
@@ -1372,6 +1412,18 @@ function init(){
   };
   $('#cloudConnect').onclick=connectCloud;
   $('#cloudInvite').onclick=copyInviteLink;
+  $('#shareToggle').onchange=async e=>{
+    const on=e.target.checked;
+    if(on){
+      store.data.shareBoard=true; store.save(); initSupabase(); updateCloudUI();
+      if(sb){ try{ await pullFromCloud(); render(); toast('You joined the leaderboard 🏆'); }
+        catch(err){ toast('Join failed: '+(err.message||err)); } }
+    }else{
+      if(sb){ toast('Removing you from the board…'); await deleteMyCloudData(); }
+      store.data.shareBoard=false; store.save(); initSupabase(); render();
+      toast('Private mode — your miles stay on this phone');
+    }
+  };
   $('#cloudRefresh').onclick=async()=>{ try{ await pullFromCloud(); render(); toast('Refreshed from cloud'); }
     catch(e){ toast('Refresh failed: '+(e.message||e)); } };
   $('#cloudDisconnect').onclick=()=>{ store.data.supabase={url:'',key:''}; store.save(); sb=null; updateCloudUI(); toast('Disconnected — using this device only'); };

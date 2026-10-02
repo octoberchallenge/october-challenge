@@ -52,6 +52,11 @@
   .stat .v{font-size:17px; font-weight:800;}
   .stat .l{font-size:9px; color:var(--muted); margin-top:2px; letter-spacing:.3px; line-height:1.35;}
   #statsTitle{margin-bottom:4px;}
+  .bdrow{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;}
+  .bdrow .bl{display:flex;align-items:center;gap:5px;min-width:78px;font-weight:700;color:var(--muted);}
+  .bdrow .bt{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap;}
+  .bdbar{flex:1;height:8px;background:#eef4f8;border-radius:99px;overflow:hidden;}
+  .bdbar>div{height:100%;border-radius:99px;}
 
   .gchip .dot{margin-right:2px;}
   .gchip.active.c20{border-color:#3fa34d; background:#e9f7ec; color:#2f7a3a;}
@@ -199,6 +204,7 @@
       <div class="stat"><div class="v" id="stStreak">0</div><div class="l">STREAK</div></div>
       <div class="stat"><div class="v" id="stBest">0</div><div class="l">BEST DAY</div></div>
     </div>
+    <div id="goalBreakdown"></div>
     <div id="completeBadge"></div>
   </section>
 
@@ -400,7 +406,7 @@ const store = {
     try{ this.data = JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ this.data=null; }
     if(!this.data || !Array.isArray(this.data.profiles)){
       this.data = { profiles:[{id:uid(), name:'Pat', color:COLORS[0], challenges:[50]}],
-        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, display:{bubbles:false, verse:true, coach:true}, onboarded:false, v:5 };
+        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, display:{bubbles:false, verse:true, coach:true}, onboarded:false, v:6 };
     }
     if(!this.data.v){
       this.data.v = 2;
@@ -436,6 +442,18 @@ const store = {
       this.data.v = 5;
       this.save();
     }
+    if(this.data.v < 6){
+      // v6: progress is measured against total commitment (sum of enrolled
+      // challenges), so carry per-goal milestone celebrations over to the
+      // total-based keys to avoid re-toasting them.
+      for(const p of this.data.profiles){
+        for(const g of enrolled(p)) for(const k of ['half','full']){
+          if(this.data.milestones[p.id+':'+g+':'+k]) this.data.milestones[p.id+':total:'+k]=true;
+        }
+      }
+      this.data.v = 6;
+      this.save();
+    }
     if(!this.data.milestones) this.data.milestones = {};
     if(!this.data.supabase) this.data.supabase = {url:'',key:''};
     if(!this.data.selected) this.data.selected = {};
@@ -460,6 +478,8 @@ function allocatedFor(pid, goal){
   }
   return 0;
 }
+// Total commitment = sum of all enrolled challenges (e.g. 20+50+100 = 170)
+const commitment = p => enrolled(p).reduce((a,g)=>a+g,0);
 
 /* ---------- supabase ---------- */
 let sb = null;
@@ -685,13 +705,14 @@ function shareCanvas(c,title,text,filename){
   },'image/png');
 }
 function lbRows(){
-  const g=activeGoal();
-  return store.data.profiles.filter(p=>enrolled(p).includes(g))
-    .map(p=>{ const t=allocatedFor(p.id,g); return {p,t,pct:Math.min(100,t/g*100)}; })
+  // Ranked by each person's overall progress: total miles vs their own
+  // total commitment (sum of enrolled challenges).
+  return store.data.profiles
+    .map(p=>{ const t=totalFor(p.id), c=commitment(p);
+      return {p,t,commit:c,pct:c>0?Math.min(100,t/c*100):0}; })
     .sort((a,b)=>b.pct-a.pct);
 }
 function shareLeaderboard(){
-  const g=activeGoal(), CH=CHALLENGES[g];
   const rows=lbRows();
   const W=1080,H=1920, c=document.createElement('canvas'); c.width=W; c.height=H;
   const x=c.getContext('2d');
@@ -739,7 +760,7 @@ function shareLeaderboard(){
   x.save(); x.translate(W/2,462); x.rotate(Math.PI/4);
   x.fillStyle='#c9a227'; x.fillRect(-11,-11,22,22); x.restore();
   x.fillStyle='rgba(233,216,166,.85)'; x.font='600 31px '+F;
-  ssSpaced(x,CH.label.toUpperCase()+' · RANKED BY PROGRESS',W/2,522,5);
+  ssSpaced(x,'RANKED BY OVERALL PROGRESS',W/2,522,5);
   // ranked rows
   const list=rows.slice(0,10);
   const top=620, avail=1060;
@@ -929,25 +950,41 @@ function bestDayFor(pid){
 }
 function renderStats(){
   const p=activeProfile(), g=activeGoal(), CH=CHALLENGES[g];
-  $('#statsTitle').textContent = p ? `${p.name}'s progress · ${CH.label}` : 'Progress';
-  const t = p ? allocatedFor(p.id, g) : 0;
-  const pct = Math.min(100, t/g*100);
+  const en = p ? enrolled(p) : [50];
+  const multi = en.length>1;
+  // Progress is measured against the TOTAL commitment (sum of enrolled
+  // challenges), so multi-card users see their real overall progress.
+  const t = p ? totalFor(p.id) : 0;
+  const commit = p ? commitment(p) : 50;
+  const barCH = CHALLENGES[en[0]];
+  $('#statsTitle').textContent = p ? (multi ? `${p.name}'s progress` : `${p.name}'s progress · ${CH.label}`) : 'Progress';
+  const pct = commit>0 ? Math.min(100, t/commit*100) : 0;
   $('#totalMi').textContent = fmt(t);
-  $('#goalMi').textContent = '/ '+g+' mi';
-  const bf=$('#barFill'); bf.style.width=pct+'%'; bf.style.background=CH.grad;
+  $('#goalMi').textContent = '/ '+commit+' mi';
+  const bf=$('#barFill'); bf.style.width=pct+'%'; bf.style.background=barCH.grad;
   $('#pctTxt').textContent = Math.round(pct)+'% complete';
-  $('#stRemain').textContent = fmt(Math.max(0, g-t));
+  $('#stRemain').textContent = fmt(Math.max(0, commit-t));
   const dl = daysLeft();
-  $('#stPace').textContent = dl>0 ? fmt(Math.max(0,g-t)/dl) : '—';
+  $('#stPace').textContent = dl>0 ? fmt(Math.max(0,commit-t)/dl) : '—';
   $('#stStreak').textContent = p ? streakFor(p.id) : 0;
   $('#stBest').textContent = p ? fmt(bestDayFor(p.id)) : 0;
-  $('#completeBadge').innerHTML = t>=g
-    ? `<div class="complete-badge">🎉 ${g} MILES — CHALLENGE COMPLETE! 🎉</div>` : '';
+  $('#completeBadge').innerHTML = t>=commit
+    ? `<div class="complete-badge">🎉 ${commit} MILES — CHALLENGE COMPLETE! 🎉</div>` : '';
+  // Per-card breakdown for multi-card users
+  const bd=$('#goalBreakdown');
+  if(bd){
+    bd.innerHTML = p && multi ? en.map(x=>{
+      const a=allocatedFor(p.id,x), cc=CHALLENGES[x], pc=Math.min(100,a/x*100);
+      return `<div class="bdrow"><span class="bl"><span class="dot" style="background:${cc.solid}"></span>${cc.label}</span>`
+        +`<div class="bdbar"><div style="width:${pc}%;background:${cc.grad}"></div></div>`
+        +`<span class="bt">${fmt(a)}/${x}</span></div>`;
+    }).join('') : '';
+  }
   if(p){
-    const marks=[{k:'half', at:g/2, msg:`${fmt(g/2)} miles — halfway there!`},
-                 {k:'full', at:g,   msg:`${g} miles! Challenge complete!`}];
+    const marks=[{k:'half', at:commit/2, msg:`${fmt(commit/2)} miles — halfway there!`},
+                 {k:'full', at:commit,   msg:`${commit} miles! Challenge complete!`}];
     for(const m of marks){
-      const key=p.id+':'+g+':'+m.k;
+      const key=p.id+':total:'+m.k;
       if(t>=m.at && !store.data.milestones[key]){
         store.data.milestones[key]=true; store.save(); confetti(); toast(m.msg);
       }
@@ -984,16 +1021,16 @@ function bubbleTap(i){
   cloudOp(()=>sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:null}), 'Add not synced');
 }
 function renderLeaderboard(){
-  const g=activeGoal(), CH=CHALLENGES[g];
-  $('#lbTitle').textContent='Leaderboard · '+CH.label;
+  $('#lbTitle').textContent='Leaderboard';
   const rows=lbRows();
   const top=rows.length?rows[0].pct:0;
   $('#leaderboard').innerHTML = rows.map((r,i)=>{
+    const grad=CHALLENGES[enrolled(r.p)[0]].grad;
     const gap = i===0 ? '' : `<div class="ahead">${Math.round(top-r.pct)}% behind ${esc(rows[0].p.name)}</div>`;
-    return `<div class="lbrow"><div class="top"><span><span class="dot" style="background:${esc(r.p.color||'#2b8fc4')}"></span> ${esc(r.p.name)}</span>
+    return `<div class="lbrow"><div class="top"><span><span class="dot" style="background:${esc(r.p.color||'#2b8fc4')}\"></span> ${esc(r.p.name)}</span>
       <span class="sc">${fmt(r.t)} mi · ${Math.round(r.pct)}%</span></div>
-      <div class="bar" style="margin:0"><div style="width:${r.pct}%;background:${CH.grad}"></div></div>${gap}</div>`;
-  }).join('') || `<div class="empty">No trackers in this challenge yet.</div>`;
+      <div class="bar" style="margin:0"><div style="width:${r.pct}%;background:${grad}"></div></div>${gap}</div>`;
+  }).join('') || `<div class="empty">No trackers yet.</div>`;
 }
 function openLb(){ $('#lbModal').classList.add('open'); document.body.style.overflow='hidden'; }
 function closeLb(){ $('#lbModal').classList.remove('open'); document.body.style.overflow=''; }

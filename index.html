@@ -1296,20 +1296,25 @@ function renderEntries(){
   $('#entries').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteEntry(b.dataset.del));
   $('#entries').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>startEdit(b.dataset.edit));
 }
-let mergingId=null; // organizer is picking a keeper for this duplicate
-function mergePickerHtml(p){
-  const nm=(p.name||'').trim().toLowerCase();
-  const cands=store.data.profiles.filter(x=>x.id!==p.id && (x.name||'').trim().toLowerCase()===nm);
-  if(!cands.length)
-    return `<div class="hint" style="margin:6px 0">No other tracker is named "${esc(p.name)}". Rename one to match first, then merge.</div>`;
-  return `<div class="hint" style="margin:8px 0 0">Merge <b>${esc(p.name)}</b> into:</div>`+
-    cands.map(c=>{
-      const mi=store.data.entries.filter(e=>e.profileId===p.id).reduce((s,e)=>s+Number(e.miles||0),0);
-      return `<button class="btn secondary" style="margin-top:6px" data-mgkeep="${c.id}" data-mgdrop="${p.id}">${esc(c.name)} — ${fmt(mi)} mi move over</button>`;
-    }).join('')+
-    `<button class="btn secondary" id="mgCancel" style="margin-top:6px">Cancel</button>`;
+let mergeSel=new Set(), mergePicking=false; // organizer multi-select for merging duplicates
+function mergeBarHtml(){
+  if(!isBoardAdmin()) return '';
+  if(mergePicking && mergeSel.size>=2){
+    const ids=[...mergeSel];
+    const rows=ids.map(id=>{
+      const p=store.data.profiles.find(x=>x.id===id); if(!p) return '';
+      const mi=store.data.entries.filter(e=>e.profileId===id).reduce((s,e)=>s+Number(e.miles||0),0);
+      return `<button class="btn secondary" style="margin-top:6px" data-mgkeeper="${id}">Keep ${esc(p.name)} (${fmt(mi)} mi)</button>`;
+    }).join('');
+    return `<div style="margin-top:10px"><div class="hint"><b>Merge ${ids.length} trackers</b> — all miles move into the one you keep. The others are removed.</div>${rows}<button class="btn secondary" id="mgCancel" style="margin-top:6px">Cancel</button></div>`;
+  }
+  if(mergeSel.size>=2)
+    return `<button class="btn secondary" id="mgGo" type="button" style="margin-top:10px">Merge ${mergeSel.size} selected…</button>`;
+  if(mergeSel.size===1)
+    return `<div class="hint" style="margin-top:8px">Tick one more tracker to merge them together.</div>`;
+  return '';
 }
-async function doMerge(keepId,dropId){
+async function doMerge(keepId,dropId,quiet){
   const keep=store.data.profiles.find(p=>p.id===keepId), drop=store.data.profiles.find(p=>p.id===dropId);
   if(!keep||!drop||!isBoardAdmin()){ toast('Organizer tools required'); return; }
   for(const e of store.data.entries) if(e.profileId===dropId) e.profileId=keepId;
@@ -1318,15 +1323,13 @@ async function doMerge(keepId,dropId){
   store.data.profiles=store.data.profiles.filter(p=>p.id!==dropId);
   if(store.data.selfProfileId===dropId) store.data.selfProfileId=keepId;
   if(store.data.activeProfileId===dropId) store.data.activeProfileId=keepId;
-  mergingId=null;
-  store.save(); render();
-  toast(`Merged into ${keep.name} ✓`);
+  if(!quiet){ store.save(); render(); toast(`Merged into ${keep.name} ✓`); }
   if(sb){
     try{
       await sb.from('challenge_entries').update({profile_id:keepId}).eq('profile_id',dropId);
       await sb.from('challenge_profiles').update({challenges:keep.challenges}).eq('id',keepId);
       await sb.from('challenge_profiles').delete().eq('id',dropId);
-    }catch(e){ toast('Merge saved here — will sync when online'); }
+    }catch(e){ if(!quiet) toast('Merge saved here — will sync when online'); }
   }
 }
 function renderProfileList(){
@@ -1339,14 +1342,14 @@ function renderProfileList(){
       return `<button class="cbtn ${c.css}${on?' on':''}" data-ch="${p.id}:${x}">${x}</button>`;
     }).join('');
     return `<div style="border-bottom:1px solid var(--line);padding:10px 0">
-      <div class="prow" style="border-bottom:none;padding:0 0 2px"><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span>
+      <div class="prow" style="border-bottom:none;padding:0 0 2px">
+      ${isBoardAdmin()?`<input type="checkbox" data-mgcb="${p.id}"${mergeSel.has(p.id)?' checked':''} aria-label="Select for merge" style="width:22px;height:22px;accent-color:var(--blue);flex:none">`:''}
+      <span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span>
       <span class="nm">${esc(p.name)}</span>
       ${editable?`<button data-rn="${p.id}">Rename</button>`:''}
-      ${editable&&store.data.profiles.length>1?`<button data-rm="${p.id}">Remove</button>`:''}
-      ${isBoardAdmin()?`<button data-mg="${p.id}">Merge…</button>`:''}</div>
-      ${mergingId===p.id?mergePickerHtml(p):''}
+      ${editable&&store.data.profiles.length>1?`<button data-rm="${p.id}">Remove</button>`:''}</div>
       <div class="chrow"><span class="cl">CHALLENGES</span>${ch}</div></div>`;
-  }).join('');
+  }).join('') + mergeBarHtml();
   $('#profileList').querySelectorAll('[data-rn]').forEach(b=>b.onclick=()=>{
     const p=store.data.profiles.find(x=>x.id===b.dataset.rn);
     const n=prompt('Name for this tracker:', p.name);
@@ -1376,17 +1379,24 @@ function renderProfileList(){
     if(!store.data.onboarded) openSetup();
     cloudOp(()=>sb.from('challenge_profiles').delete().eq('id',p.id), 'Remove not synced');
   });
-  $('#profileList').querySelectorAll('[data-mg]').forEach(b=>b.onclick=()=>{
-    mergingId=b.dataset.mg; renderProfileList();
+  $('#profileList').querySelectorAll('[data-mgcb]').forEach(cb=>cb.onchange=()=>{
+    if(cb.checked) mergeSel.add(cb.dataset.mgcb); else mergeSel.delete(cb.dataset.mgcb);
+    if(mergeSel.size<2) mergePicking=false;
+    renderProfileList();
   });
-  const mgc=$('#mgCancel'); if(mgc) mgc.onclick=()=>{ mergingId=null; renderProfileList(); };
-  $('#profileList').querySelectorAll('[data-mgkeep]').forEach(b=>b.onclick=async()=>{
-    const keep=store.data.profiles.find(x=>x.id===b.dataset.mgkeep);
-    const drop=store.data.profiles.find(x=>x.id===b.dataset.mgdrop);
-    if(!keep||!drop) return;
-    const mi=store.data.entries.filter(e=>e.profileId===drop.id).reduce((s,e)=>s+Number(e.miles||0),0);
-    if(!confirm(`Merge "${drop.name}" into "${keep.name}"? ${fmt(mi)} miles move over and "${drop.name}" will be removed.`)) return;
-    await doMerge(keep.id,drop.id);
+  const mgGo=$('#mgGo'); if(mgGo) mgGo.onclick=()=>{ mergePicking=true; renderProfileList(); };
+  const mgc=$('#mgCancel'); if(mgc) mgc.onclick=()=>{ mergePicking=false; renderProfileList(); };
+  $('#profileList').querySelectorAll('[data-mgkeeper]').forEach(b=>b.onclick=async()=>{
+    const keepId=b.dataset.mgkeeper;
+    const drops=[...mergeSel].filter(id=>id!==keepId);
+    const keep=store.data.profiles.find(p=>p.id===keepId);
+    if(!keep||!drops.length) return;
+    const mi=drops.reduce((s,id)=>s+store.data.entries.filter(e=>e.profileId===id).reduce((a,e)=>a+Number(e.miles||0),0),0);
+    if(!confirm(`Merge into "${keep.name}"? ${fmt(mi)} miles move over and ${drops.length} other tracker${drops.length>1?'s':''} will be removed.`)) return;
+    for(const d of drops) await doMerge(keepId,d,true);
+    mergeSel.clear(); mergePicking=false;
+    store.save(); render();
+    toast(`Merged into ${keep.name} ✓`);
   });
   $('#profileList').querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{
     const parts=b.dataset.ch.split(':'), pid=parts[0], gx=Number(parts[1]);

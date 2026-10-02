@@ -39,6 +39,9 @@
   .tab .nm{font-weight:700; font-size:15px; display:flex; align-items:center; gap:6px;}
   .dot{width:10px; height:10px; border-radius:50%; display:inline-block;}
   .tab .mi{font-size:12px; color:var(--muted); margin-top:2px;}
+  .cardsline{font-size:13px; color:var(--muted); margin:6px 2px 0;}
+  .cardsline b{color:var(--navy);}
+  .cardsline a{color:var(--blue-dark); font-weight:600;}
   /* setup match picker */
   .matchbtn{display:flex; align-items:center; gap:8px; width:100%; border:2px solid var(--line);
     background:#fff; border-radius:12px; padding:12px; margin:8px 0; cursor:pointer;
@@ -221,6 +224,7 @@
 
 <main>
   <div class="chips" id="goalChips" style="margin-top:10px"></div>
+  <div class="cardsline" id="cardsLine"></div>
 
   <section class="card" id="statsCard">
     <h2 id="statsTitle">Progress</h2>
@@ -324,6 +328,16 @@
     <div id="installSteps"></div>
     <button class="btn" id="installGo" type="button" style="display:none">Install app</button>
     <button class="btn secondary" id="installLater" type="button">Not now</button>
+  </div>
+</div>
+
+<div class="modal" id="cardsModal">
+  <div class="sheet">
+    <div class="closeRow"><button id="closeCards" aria-label="Close">✕</button></div>
+    <h2>Challenge cards</h2>
+    <p class="hint">Pick the distances you're doing. Your miles fill them in order: 20, then 50, then 100.</p>
+    <div class="chips" id="cardsChips"></div>
+    <button class="btn" id="cardsDone" type="button" style="margin-top:14px">Done</button>
   </div>
 </div>
 
@@ -1039,7 +1053,7 @@ function applyDisplay(){
 }
 function render(){
   pinActiveToSelf();
-  renderGoalChips(); renderNudge(); renderVerse(); renderStats(); renderCoach(); renderBubbles(); renderLeaderboard(); renderEntries(); renderProfileList(); renderDisplayToggles(); applyDisplay();
+  renderGoalChips(); renderCardsLine(); renderNudge(); renderVerse(); renderStats(); renderCoach(); renderBubbles(); renderLeaderboard(); renderEntries(); renderProfileList(); renderDisplayToggles(); applyDisplay();
 }
 function renderGoalChips(){
   const p=activeProfile(), el=$('#goalChips');
@@ -1051,6 +1065,36 @@ function renderGoalChips(){
   }).join('');
   el.querySelectorAll('[data-goal]').forEach(b=>b.onclick=()=>{
     store.data.selected[p.id]=Number(b.dataset.goal); store.save(); render();
+  });
+}
+function renderCardsLine(){
+  const p=activeProfile(), el=$('#cardsLine');
+  if(!p){ el.innerHTML=''; return; }
+  const g=activeGoal(), en=enrolled(p);
+  let html=`Showing <b>${g}-Mile</b>`;
+  if(en.length<3) html+=` · <a href="#" id="addCardLink">wanna add another card?</a>`;
+  el.innerHTML=html;
+  const a=$('#addCardLink');
+  if(a) a.onclick=e=>{ e.preventDefault(); openCards(); };
+}
+function openCards(){ renderCardsChips(); $('#cardsModal').classList.add('open'); document.body.style.overflow='hidden'; }
+function closeCards(){ $('#cardsModal').classList.remove('open'); document.body.style.overflow=''; }
+function renderCardsChips(){
+  const p=activeProfile(); if(!p) return;
+  const en=enrolled(p);
+  $('#cardsChips').innerHTML=[20,50,100].map(x=>{
+    const c=CHALLENGES[x], on=en.includes(x);
+    return `<button type="button" class="chip${on?' active':''}" data-cx="${x}"><span class="dot" style="background:${c.solid}"></span>${c.label}</button>`;
+  }).join('');
+  $('#cardsChips').querySelectorAll('[data-cx]').forEach(b=>b.onclick=()=>{
+    const gx=Number(b.dataset.cx);
+    let ne=enrolled(p);
+    if(ne.includes(gx)){
+      if(ne.length===1){ toast('Keep at least one card'); return; }
+      ne=ne.filter(y=>y!==gx);
+    } else ne=[...ne,gx].sort((a,b)=>a-b);
+    p.challenges=ne; store.save(); renderCardsChips(); render();
+    cloudOp(()=>sb.from('challenge_profiles').update({challenges:ne}).eq('id',p.id), 'Cards not synced');
   });
 }
 function renderNudge(){
@@ -1514,9 +1558,12 @@ function init(){
   $('#openLbBtn').onclick=async()=>{ if(sb){ try{ await pullFromCloud(); }catch(e){} render(); } renderLeaderboard(); openLb(); };
   $('#closeLb').onclick=closeLb;
   $('#lbModal').onclick=e=>{ if(e.target.id==='lbModal') closeLb(); };
+  $('#closeCards').onclick=closeCards;
+  $('#cardsDone').onclick=closeCards;
+  $('#cardsModal').onclick=e=>{ if(e.target.id==='cardsModal') closeCards(); };
   $('#closeLog').onclick=()=>{ cancelEdit(); closeLog(); };
   $('#logModal').onclick=e=>{ if(e.target.id==='logModal'){ cancelEdit(); closeLog(); } };
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if($('#logModal').classList.contains('open')){ cancelEdit(); closeLog(); } if($('#lbModal').classList.contains('open')) closeLb(); if($('#installModal').classList.contains('open')) closeInstall(); } });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if($('#logModal').classList.contains('open')){ cancelEdit(); closeLog(); } if($('#lbModal').classList.contains('open')) closeLb(); if($('#cardsModal').classList.contains('open')) closeCards(); if($('#installModal').classList.contains('open')) closeInstall(); } });
   $('#cancelEdit').onclick=cancelEdit;
   $('#mMinus').onclick=()=>{ const f=$('#fMiles'); f.value=Math.max(0,(parseFloat(f.value)||0)-0.5).toFixed(1).replace(/\.0$/,''); };
   $('#mPlus').onclick=()=>{ const f=$('#fMiles'); f.value=((parseFloat(f.value)||0)+0.5).toFixed(1).replace(/\.0$/,''); };

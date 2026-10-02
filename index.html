@@ -340,13 +340,14 @@
     <div id="displayToggles"></div>
 
     <h3>Cloud sync (Supabase)</h3>
-    <p class="hint">Optional. Connect Supabase so both phones share the same data. Run <b>supabase-schema.sql</b> in your Supabase SQL editor first, then paste your project URL and anon key here. They stay in this browser only.</p>
+    <p class="hint">Connect once, then share your invite link — anyone who opens it joins the shared board automatically. First run <b>supabase-schema.sql</b> in your Supabase SQL editor, then paste your project URL and anon key here.</p>
     <label class="fl" for="sbUrl">Supabase URL</label>
     <input type="url" id="sbUrl" placeholder="https://xyzcompany.supabase.co" autocomplete="off">
     <label class="fl" for="sbKey">Anon key</label>
     <input type="password" id="sbKey" placeholder="eyJhbGciOi…" autocomplete="off">
     <button class="btn" id="cloudConnect" type="button">Connect &amp; sync</button>
     <button class="btn secondary" id="cloudRefresh" type="button" style="display:none">Refresh from cloud</button>
+    <button class="btn secondary" id="cloudInvite" type="button" style="display:none">📋 Copy invite link</button>
     <button class="btn secondary" id="cloudDisconnect" type="button" style="display:none">Disconnect</button>
     <div class="status" id="cloudStatus"></div>
 
@@ -530,24 +531,64 @@ function initSupabase(){
 }
 async function pullFromCloud(){
   if(!sb) return;
+  // Safe join: push anything the cloud doesn't have yet (a newcomer adds
+  // themselves) instead of replacing local data, then pull cloud as truth.
+  const {data:cp, error:e0} = await sb.from('challenge_profiles').select('id');
+  if(e0) throw e0;
+  const haveP = new Set((cp||[]).map(r=>r.id));
+  for(const p of store.data.profiles){
+    if(!haveP.has(p.id)){
+      const {error}=await sb.from('challenge_profiles').insert({id:p.id, name:p.name, color:p.color, challenges:enrolled(p)});
+      if(error && error.code!=='23505') throw error; // ignore race duplicates
+    }
+  }
+  const {data:ce, error:e00} = await sb.from('challenge_entries').select('id');
+  if(e00) throw e00;
+  const haveE = new Set((ce||[]).map(r=>r.id));
+  for(const e of store.data.entries){
+    if(!haveE.has(e.id)){
+      const {error}=await sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:e.note||null});
+      if(error && error.code!=='23505') throw error; // ignore race duplicates
+    }
+  }
   const {data:profs, error:e1} = await sb.from('challenge_profiles').select('*');
   if(e1) throw e1;
   const {data:ents, error:e2} = await sb.from('challenge_entries').select('*');
   if(e2) throw e2;
-  if(profs.length===0 && store.data.profiles.length>0){
-    for(const p of store.data.profiles)
-      await sb.from('challenge_profiles').insert({id:p.id, name:p.name, color:p.color, challenges:enrolled(p)});
-    for(const e of store.data.entries)
-      await sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:e.note||null});
-  } else {
-    store.data.profiles = profs.map(p=>({id:p.id, name:p.name, color:p.color||COLORS[0],
-      challenges:Array.isArray(p.challenges)&&p.challenges.length?p.challenges.filter(g=>CHALLENGES[g]):[50]}));
-    store.data.entries = ents.map(e=>({id:e.id, profileId:e.profile_id, date:e.entry_date,
-      activity:e.activity, miles:Number(e.miles), note:e.note||''}));
-    if(!store.data.profiles.find(p=>p.id===store.data.activeProfileId))
-      store.data.activeProfileId = store.data.profiles.length ? store.data.profiles[0].id : null;
-  }
+  store.data.profiles = profs.map(p=>({id:p.id, name:p.name, color:p.color||COLORS[0],
+    challenges:Array.isArray(p.challenges)&&p.challenges.length?p.challenges.filter(g=>CHALLENGES[g]):[50]}));
+  store.data.entries = ents.map(e=>({id:e.id, profileId:e.profile_id, date:e.entry_date,
+    activity:e.activity, miles:Number(e.miles), note:e.note||''}));
+  if(!store.data.profiles.find(p=>p.id===store.data.activeProfileId))
+    store.data.activeProfileId = store.data.profiles.length ? store.data.profiles[0].id : null;
   store.save();
+}
+// Invite link: #c=<base64url JSON {u:url,k:anonKey}> — joiners auto-connect.
+function invitePayload(){
+  const cfg=store.data.supabase;
+  return btoa(unescape(encodeURIComponent(JSON.stringify({u:cfg.url,k:cfg.key}))))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function inviteLink(){ return location.origin+location.pathname+'#c='+invitePayload(); }
+function consumeInviteHash(){
+  const m=(location.hash||'').match(/^#c=([A-Za-z0-9\-_]+)$/);
+  if(!m) return false;
+  try{
+    const o=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/')))));
+    if(o&&o.u&&o.k&&/^https:\/\//.test(o.u)&&o.u.includes('.supabase.co')){
+      store.data.supabase={url:o.u,key:o.k}; store.save();
+      history.replaceState(null,'',location.pathname+location.search);
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+async function copyInviteLink(){
+  const link=inviteLink();
+  try{ await navigator.clipboard.writeText(link); toast('Invite link copied — share it!'); }
+  catch(e){
+    prompt('Copy your invite link:', link);
+  }
 }
 async function cloudOp(fn, failMsg){
   if(!sb) return;
@@ -1195,6 +1236,7 @@ function finishSetup(){
   store.data.selected[p.id]=p.challenges[0];
   store.data.onboarded=true;
   store.save();
+  cloudOp(()=>sb.from('challenge_profiles').upsert({id:p.id, name:p.name, color:p.color, challenges:p.challenges}), 'Profile not synced');
   $('#setupModal').classList.remove('open'); document.body.style.overflow='';
   render();
   setTimeout(maybeInstallPrompt, 600);
@@ -1267,6 +1309,7 @@ async function deleteEntry(id){
 function updateCloudUI(){
   const on=!!sb;
   $('#cloudRefresh').style.display=on?'block':'none';
+  $('#cloudInvite').style.display=on?'block':'none';
   $('#cloudDisconnect').style.display=on?'block':'none';
   const st=$('#cloudStatus');
   if(on){ st.textContent='● Connected — changes sync to Supabase'; st.className='status ok'; }
@@ -1298,7 +1341,7 @@ function init(){
   renderChips();
   $('#submitBtn').onclick=submitForm;
   $('#openLogBtn').onclick=()=>{ cancelEdit(); openLog(); };
-  $('#openLbBtn').onclick=()=>{ renderLeaderboard(); openLb(); };
+  $('#openLbBtn').onclick=async()=>{ if(sb){ try{ await pullFromCloud(); }catch(e){} render(); } renderLeaderboard(); openLb(); };
   $('#closeLb').onclick=closeLb;
   $('#lbModal').onclick=e=>{ if(e.target.id==='lbModal') closeLb(); };
   $('#closeLog').onclick=()=>{ cancelEdit(); closeLog(); };
@@ -1322,6 +1365,7 @@ function init(){
     }
   };
   $('#cloudConnect').onclick=connectCloud;
+  $('#cloudInvite').onclick=copyInviteLink;
   $('#cloudRefresh').onclick=async()=>{ try{ await pullFromCloud(); render(); toast('Refreshed from cloud'); }
     catch(e){ toast('Refresh failed: '+(e.message||e)); } };
   $('#cloudDisconnect').onclick=()=>{ store.data.supabase={url:'',key:''}; store.save(); sb=null; updateCloudUI(); toast('Disconnected — using this device only'); };
@@ -1346,6 +1390,7 @@ function init(){
     if(!confirm('Erase ALL local data (profiles + entries)? This cannot be undone.')) return;
     localStorage.removeItem(LS_KEY); store.load(); initSupabase(); render(); maybeSetup(); toast('Local data erased');
   };
+  if(consumeInviteHash()) toast('Invite accepted — connecting…');
   initSupabase();
   render();
   setInterval(renderVerse, 60000);

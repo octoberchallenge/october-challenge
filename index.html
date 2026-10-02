@@ -661,6 +661,28 @@ async function cloudOp(fn, failMsg){
   try{ await fn(); }
   catch(e){ toast(failMsg + ' — kept on this device only'); }
 }
+// Re-joining the board: explicitly re-assert your own tracker and any of
+// your entries missing from the cloud, then pull. (A plain pull can't do
+// this — your rows were already confirmed before you left, so there are no
+// pending markers to push.)
+async function rejoinBoard(){
+  if(!sb) return;
+  const self=store.data.profiles.find(p=>p.id===store.data.selfProfileId);
+  if(self){
+    try{ await sb.from('challenge_profiles').upsert({id:self.id, name:self.name, color:self.color, challenges:enrolled(self)}); }catch(e){}
+    try{
+      const {data:ce}=await sb.from('challenge_entries').select('id');
+      const have=new Set((ce||[]).map(r=>r.id));
+      for(const e of store.data.entries){
+        if(e.profileId===self.id && !have.has(e.id)){
+          try{ await sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:e.note||null}); }
+          catch(err){ if(err&&err.code!=='23505') throw err; }
+        }
+      }
+    }catch(e){}
+  }
+  await pullFromCloud();
+}
 
 /* ---------- instagram story share ---------- */
 function rr(x,px,py,w,h,r){
@@ -1453,7 +1475,7 @@ function init(){
     const on=e.target.checked;
     if(on){
       store.data.shareBoard=true; store.save(); initSupabase(); updateCloudUI();
-      if(sb){ try{ await pullFromCloud(); render(); toast('You joined the leaderboard 🏆'); }
+      if(sb){ try{ await rejoinBoard(); render(); toast('You joined the leaderboard 🏆'); }
         catch(err){ toast('Join failed: '+(err.message||err)); } }
     }else{
       if(sb){ toast('Removing you from the board…'); await deleteMyCloudData(); }

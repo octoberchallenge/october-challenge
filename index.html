@@ -320,7 +320,7 @@
     <p class="hint" id="setupMatchesHint"></p>
     <div id="setupMatchList"></div>
     <button class="btn secondary" id="setupMatchNew" type="button" style="margin-top:10px">None of these — create my tracker</button>
-    <button class="btn secondary" id="setupMatchBack" type="button" style="margin-top:8px">← Back</button>
+    <button class="btn secondary" id="setupMatchBack" type="button" style="margin-top:8px">← Back and add my last name</button>
    </div>
   </div>
 </div>
@@ -1302,6 +1302,39 @@ function renderEntries(){
   $('#entries').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteEntry(b.dataset.del));
   $('#entries').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>startEdit(b.dataset.edit));
 }
+let mergingId=null; // organizer is picking a keeper for this duplicate
+function mergePickerHtml(p){
+  const nm=(p.name||'').trim().toLowerCase();
+  const cands=store.data.profiles.filter(x=>x.id!==p.id && (x.name||'').trim().toLowerCase()===nm);
+  if(!cands.length)
+    return `<div class="hint" style="margin:6px 0">No other tracker is named "${esc(p.name)}". Rename one to match first, then merge.</div>`;
+  return `<div class="hint" style="margin:8px 0 0">Merge <b>${esc(p.name)}</b> into:</div>`+
+    cands.map(c=>{
+      const mi=store.data.entries.filter(e=>e.profileId===p.id).reduce((s,e)=>s+Number(e.miles||0),0);
+      return `<button class="btn secondary" style="margin-top:6px" data-mgkeep="${c.id}" data-mgdrop="${p.id}">${esc(c.name)} — ${fmt(mi)} mi move over</button>`;
+    }).join('')+
+    `<button class="btn secondary" id="mgCancel" style="margin-top:6px">Cancel</button>`;
+}
+async function doMerge(keepId,dropId){
+  const keep=store.data.profiles.find(p=>p.id===keepId), drop=store.data.profiles.find(p=>p.id===dropId);
+  if(!keep||!drop||!isBoardAdmin()){ toast('Organizer tools required'); return; }
+  for(const e of store.data.entries) if(e.profileId===dropId) e.profileId=keepId;
+  keep.challenges=[...new Set([...enrolled(keep),...enrolled(drop)])].sort((a,b)=>a-b);
+  if(!keep.challenges.length) keep.challenges=[50];
+  store.data.profiles=store.data.profiles.filter(p=>p.id!==dropId);
+  if(store.data.selfProfileId===dropId) store.data.selfProfileId=keepId;
+  if(store.data.activeProfileId===dropId) store.data.activeProfileId=keepId;
+  mergingId=null;
+  store.save(); render();
+  toast(`Merged into ${keep.name} ✓`);
+  if(sb){
+    try{
+      await sb.from('challenge_entries').update({profile_id:keepId}).eq('profile_id',dropId);
+      await sb.from('challenge_profiles').update({challenges:keep.challenges}).eq('id',keepId);
+      await sb.from('challenge_profiles').delete().eq('id',dropId);
+    }catch(e){ toast('Merge saved here — will sync when online'); }
+  }
+}
 function renderProfileList(){
   $('#profileList').innerHTML = store.data.profiles.map((p,i)=>{
     const en=enrolled(p);
@@ -1315,7 +1348,9 @@ function renderProfileList(){
       <div class="prow" style="border-bottom:none;padding:0 0 2px"><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span>
       <span class="nm">${esc(p.name)}</span>
       ${editable?`<button data-rn="${p.id}">Rename</button>`:''}
-      ${editable&&store.data.profiles.length>1?`<button data-rm="${p.id}">Remove</button>`:''}</div>
+      ${editable&&store.data.profiles.length>1?`<button data-rm="${p.id}">Remove</button>`:''}
+      ${isBoardAdmin()?`<button data-mg="${p.id}">Merge…</button>`:''}</div>
+      ${mergingId===p.id?mergePickerHtml(p):''}
       <div class="chrow"><span class="cl">CHALLENGES</span>${ch}</div></div>`;
   }).join('');
   $('#profileList').querySelectorAll('[data-rn]').forEach(b=>b.onclick=()=>{
@@ -1346,6 +1381,18 @@ function renderProfileList(){
     store.save(); render();
     if(!store.data.onboarded) openSetup();
     cloudOp(()=>sb.from('challenge_profiles').delete().eq('id',p.id), 'Remove not synced');
+  });
+  $('#profileList').querySelectorAll('[data-mg]').forEach(b=>b.onclick=()=>{
+    mergingId=b.dataset.mg; renderProfileList();
+  });
+  const mgc=$('#mgCancel'); if(mgc) mgc.onclick=()=>{ mergingId=null; renderProfileList(); };
+  $('#profileList').querySelectorAll('[data-mgkeep]').forEach(b=>b.onclick=async()=>{
+    const keep=store.data.profiles.find(x=>x.id===b.dataset.mgkeep);
+    const drop=store.data.profiles.find(x=>x.id===b.dataset.mgdrop);
+    if(!keep||!drop) return;
+    const mi=store.data.entries.filter(e=>e.profileId===drop.id).reduce((s,e)=>s+Number(e.miles||0),0);
+    if(!confirm(`Merge "${drop.name}" into "${keep.name}"? ${fmt(mi)} miles move over and "${drop.name}" will be removed.`)) return;
+    await doMerge(keep.id,drop.id);
   });
   $('#profileList').querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{
     const parts=b.dataset.ch.split(':'), pid=parts[0], gx=Number(parts[1]);
@@ -1493,7 +1540,7 @@ function finishSetupDone(p){
 function showSetupMatches(nm,matches){
   $('#setupForm').style.display='none';
   const box=$('#setupMatches'); box.style.display='';
-  $('#setupMatchesHint').textContent=`We found trackers similar to "${nm}" — tap yours below, or create a new tracker.`;
+  $('#setupMatchesHint').textContent=`We found trackers similar to "${nm}" — tap yours below. Not you? Go back and add your last name, or create a separate tracker.`;
   $('#setupMatchList').innerHTML=matches.map(m=>{
     const ch=(Array.isArray(m.challenges)?m.challenges.filter(g=>CHALLENGES[g]):[50]).join(' · ');
     return `<button type="button" class="matchbtn" data-mid="${m.id}">`
@@ -1506,7 +1553,13 @@ function showSetupMatches(nm,matches){
     const s=pendingSetup; pendingSetup=null; hideSetupMatches();
     setupAdopt(s.p,m);
   });
-  $('#setupMatchNew').onclick=()=>{ const s=pendingSetup; pendingSetup=null; hideSetupMatches(); setupCreateNew(s.p,s.nm,s.ch); };
+  $('#setupMatchNew').onclick=()=>{
+    const s=pendingSetup;
+    // Single first name + existing matches = likely duplicate. Nudge once.
+    const singleWord=s && s.nm && !/\s/.test(s.nm.trim());
+    if(singleWord && !confirm(`"${s.nm}" is already on the board. Create a separate tracker for "${s.nm}"? Adding your last name avoids mix-ups.`)) return;
+    pendingSetup=null; hideSetupMatches(); setupCreateNew(s.p,s.nm,s.ch);
+  };
   $('#setupMatchBack').onclick=()=>{ pendingSetup=null; hideSetupMatches(); };
 }
 function hideSetupMatches(){ $('#setupMatches').style.display='none'; $('#setupForm').style.display=''; }

@@ -213,7 +213,6 @@
 </header>
 
 <main>
-  <div class="tabs" id="tabs"></div>
   <div class="chips" id="goalChips" style="margin-top:10px"></div>
 
   <section class="card" id="statsCard">
@@ -336,9 +335,8 @@
     <h2>Settings</h2>
 
     <h3>Trackers</h3>
-    <p class="hint">Your tracker is below — rename it any time. Use the 20 / 50 / 100 buttons to pick which distances you're doing. You can add more trackers if someone joins you.</p>
+    <p class="hint">Your tracker is below — rename it any time. Use the 20 / 50 / 100 buttons to pick which distances you're doing. Everyone else shows up on the shared leaderboard.</p>
     <div id="profileList"></div>
-    <button class="btn secondary" id="addProfile" type="button">+ Add tracker</button>
     <button class="btn secondary" id="installRow" type="button" style="margin-top:8px">📲 Install app</button>
 
     <h3>Customize</h3>
@@ -520,6 +518,7 @@ const store = {
     if(!this.data.selected) this.data.selected = {};
     if(!this.data.activeProfileId || !this.data.profiles.find(p=>p.id===this.data.activeProfileId))
       this.data.activeProfileId = this.data.profiles.length ? this.data.profiles[0].id : null;
+    pinActiveToSelf();
   },
   save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(this.data)); }catch(e){} }
 };
@@ -529,6 +528,14 @@ const activeProfile = () => store.data.profiles.find(p=>p.id===store.data.active
 function ownProfile(){ return store.data.profiles.find(p=>p.id===store.data.selfProfileId) || activeProfile(); }
 function isBoardAdmin(){ const o=ownProfile(); return !!(o && o.name && o.name.trim().toLowerCase()==='pat'); }
 function canEditProfile(pid){ return isBoardAdmin() || (store.data.selfProfileId && pid===store.data.selfProfileId); }
+// One tracker per device: the active tracker is always your own, so miles
+// can only ever be logged for yourself. Everyone else is leaderboard-only.
+function pinActiveToSelf(){
+  const self=store.data.selfProfileId;
+  if(self && store.data.profiles.find(p=>p.id===self) && store.data.activeProfileId!==self){
+    store.data.activeProfileId=self; store.save();
+  }
+}
 const entriesFor = pid => store.data.entries.filter(e=>e.profileId===pid && inChallenge(e.date));
 const totalFor = pid => entriesFor(pid).reduce((s,e)=>s+Number(e.miles),0);
 // Miles are counted once and allocated across enrolled challenges in ascending
@@ -607,6 +614,7 @@ async function pullFromCloud(){
   // removed a duplicate), re-point ownership at the active tracker.
   if(store.data.selfProfileId && !store.data.profiles.find(p=>p.id===store.data.selfProfileId))
     store.data.selfProfileId = store.data.activeProfileId;
+  pinActiveToSelf();
   store.save();
 }
 // Invite link: #c=<base64url JSON {u:url,k:anonKey}> — joiners auto-connect.
@@ -991,17 +999,8 @@ function applyDisplay(){
   $('#coachCard').style.display=d.coach===false?'none':'';
 }
 function render(){
-  renderTabs(); renderGoalChips(); renderNudge(); renderVerse(); renderStats(); renderCoach(); renderBubbles(); renderLeaderboard(); renderEntries(); renderProfileList(); renderDisplayToggles(); applyDisplay();
-}
-function renderTabs(){
-  const el=$('#tabs');
-  el.innerHTML = store.data.profiles.map(p=>{
-    const t=totalFor(p.id);
-    return `<button class="tab${p.id===store.data.activeProfileId?' active':''}" data-pid="${p.id}">
-      <div class="nm"><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span>${esc(p.name)}</div>
-      <div class="mi">${fmt(t)} mi total</div></button>`;
-  }).join('') || `<div class="empty">Add a tracker in Settings ⚙</div>`;
-  el.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{ store.data.activeProfileId=b.dataset.pid; store.save(); render(); });
+  pinActiveToSelf();
+  renderGoalChips(); renderNudge(); renderVerse(); renderStats(); renderCoach(); renderBubbles(); renderLeaderboard(); renderEntries(); renderProfileList(); renderDisplayToggles(); applyDisplay();
 }
 function renderGoalChips(){
   const p=activeProfile(), el=$('#goalChips');
@@ -1448,16 +1447,6 @@ function init(){
   $('#settingsBtn').onclick=()=>{ renderProfileList(); $('#settingsModal').classList.add('open'); };
   $('#closeSettings').onclick=()=>$('#settingsModal').classList.remove('open');
   $('#settingsModal').onclick=e=>{ if(e.target.id==='settingsModal') e.target.classList.remove('open'); };
-  $('#addProfile').onclick=()=>{
-    const n=prompt("Tracker's name:",'');
-    if(n && n.trim()){
-      const p={id:uid(), name:n.trim().slice(0,24), color:COLORS[store.data.profiles.length%COLORS.length], challenges:[50]};
-      store.data.profiles.push(p); store.data.activeProfileId=p.id;
-      store.data.selfProfileId=p.id;
-      store.data.mine.push(p.id); store.save(); render();
-      cloudOp(()=>sb.from('challenge_profiles').insert({id:p.id,name:p.name,color:p.color,challenges:p.challenges}), 'Add not synced');
-    }
-  };
   $('#cloudInvite').onclick=copyInviteLink;
   $('#shareToggle').onchange=async e=>{
     const on=e.target.checked;

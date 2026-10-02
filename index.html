@@ -1384,6 +1384,18 @@ function openSetup(){
   $('#setupModal').classList.add('open'); document.body.style.overflow='hidden';
 }
 let pendingSetup=null; // {p, nm, ch} while the user picks from name matches
+// Name matching for the setup picker: exact, same first name, or one name
+// starting with the other ("Patricia" finds "Patricia Remiesiewicz").
+// Biased toward showing candidates — the picker lets the user decide.
+function namesMatch(a,b){
+  a=(a||'').trim().toLowerCase(); b=(b||'').trim().toLowerCase();
+  if(!a||!b) return false;
+  if(a===b) return true;
+  const aw=a.split(/\s+/)[0], bw=b.split(/\s+/)[0];
+  if(aw===bw&&aw.length>=2) return true;
+  const short=Math.min(a.length,b.length);
+  return short>=2&&(a.startsWith(b)||b.startsWith(a));
+}
 async function finishSetup(){
   let p=activeProfile(); if(!p) return;
   const nm=($('#setupName').value.trim()||'Me').slice(0,30);
@@ -1399,7 +1411,7 @@ async function finishSetup(){
     let matches=[];
     try{
       const {data:cloud}=await sb.from('challenge_profiles').select('id,name,color,challenges');
-      matches=(cloud||[]).filter(r=>r.name.toLowerCase()===nm.toLowerCase() && r.id!==p.id);
+      matches=(cloud||[]).filter(r=>namesMatch(r.name,nm) && r.id!==p.id);
       if(matches.length){
         try{
           const {data:ents}=await sb.from('challenge_entries').select('profile_id,miles');
@@ -1448,7 +1460,7 @@ function finishSetupDone(p){
 function showSetupMatches(nm,matches){
   $('#setupForm').style.display='none';
   const box=$('#setupMatches'); box.style.display='';
-  $('#setupMatchesHint').textContent=`"${nm}" is already on the leaderboard — tap yours below, or create a new tracker.`;
+  $('#setupMatchesHint').textContent=`We found trackers similar to "${nm}" — tap yours below, or create a new tracker.`;
   $('#setupMatchList').innerHTML=matches.map(m=>{
     const ch=(Array.isArray(m.challenges)?m.challenges.filter(g=>CHALLENGES[g]):[50]).join(' · ');
     return `<button type="button" class="matchbtn" data-mid="${m.id}">`

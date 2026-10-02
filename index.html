@@ -57,6 +57,29 @@
   .bdrow .bt{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap;}
   .bdbar{flex:1;height:8px;background:#eef4f8;border-radius:99px;overflow:hidden;}
   .bdbar>div{height:100%;border-radius:99px;}
+  .lbhead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;}
+  .lbhead h2{margin:0;}
+  .lbsub{margin:2px 0 0;color:var(--muted);font-size:14px;}
+  .lbcount{background:#e8f1f8;color:#1c6e9c;font-weight:800;font-size:13px;padding:7px 14px;border-radius:99px;white-space:nowrap;}
+  .lbsearch{display:flex;align-items:center;gap:8px;background:#f2f7fb;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;}
+  .lbsearch input{border:none;background:none;outline:none;font-size:15px;width:100%;color:var(--navy);}
+  .lbaz{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:2px;-webkit-overflow-scrolling:touch;}
+  .lbaz button{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:10px;min-width:36px;padding:7px 4px;font-weight:700;color:var(--navy);font-size:14px;}
+  .lbaz button.on{background:#e8f1f8;border-color:#2b8fc4;color:#1c6e9c;}
+  .lbfoot{color:var(--muted);font-size:13px;margin:8px 0 2px;}
+  .lbperson{display:flex;gap:10px;align-items:flex-start;padding:12px 2px;border-bottom:1px solid var(--line);}
+  .lbperson:last-child{border-bottom:none;}
+  .lbname{flex:0 0 84px;display:flex;align-items:center;gap:6px;font-weight:800;font-size:15px;padding-top:9px;overflow:hidden;}
+  .lbname span.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lbcards{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;min-width:0;align-items:start;}
+  .lbctile.empty{visibility:hidden;}
+  .lbctile{min-width:0;overflow:hidden;border-radius:14px;padding:9px 9px 10px;color:#fff;
+    background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:0 2px 8px rgba(0,0,0,.14);}
+  .lbctile.done{box-shadow:0 0 0 2px #f3d47a,0 2px 10px rgba(0,0,0,.16);}
+  .lbcrow{display:flex;justify-content:space-between;align-items:center;gap:4px;font-size:12px;font-weight:700;white-space:nowrap;}
+  .lbcrow b{font-weight:800;}
+  .lbcbar{height:8px;background:rgba(255,255,255,.35);border-radius:99px;margin-top:7px;overflow:hidden;}
+  .lbcbar>div{height:100%;background:#fff;border-radius:99px;}
 
   .gchip .dot{margin-right:2px;}
   .gchip.active.c20{border-color:#3fa34d; background:#e9f7ec; color:#2f7a3a;}
@@ -286,10 +309,16 @@
 <div class="modal" id="lbModal">
   <div class="sheet">
     <div class="closeRow"><button id="closeLb" aria-label="Close">✕</button></div>
-    <h2 id="lbTitle">Leaderboard</h2>
+    <div class="lbhead">
+      <div><h2 id="lbTitle">Leaderboard</h2><p class="lbsub">First name · A-Z</p></div>
+      <div class="lbcount" id="lbCount"></div>
+    </div>
+    <div class="lbsearch"><span aria-hidden="true">🔍</span><input id="lbSearch" type="search" placeholder="Search by name" autocomplete="off" aria-label="Search by name"></div>
+    <div class="lbaz" id="lbAz"></div>
     <div id="leaderboard"></div>
-    <button class="btn secondary" id="storyBtn" type="button" style="margin-top:10px">📸 Share leaderboard to Instagram Story</button>
-    <button class="btn secondary" id="myStoryBtn" type="button" style="margin-top:8px">📸 Share my progress</button>
+    <div class="lbfoot" id="lbFoot"></div>
+    <button class="btn" id="myStoryBtn" type="button" style="margin-top:10px">📸 Share my progress</button>
+    <button class="btn secondary" id="storyBtn" type="button" style="margin-top:8px">📸 Share leaderboard</button>
   </div>
 </div>
 
@@ -334,9 +363,9 @@
 "use strict";
 const $ = s => document.querySelector(s);
 const CHALLENGES = {
-  20:  {miles:20,  label:'20-Mile',  css:'c20',  solid:'#3fa34d', grad:'linear-gradient(90deg,#6fce62,#2f9e44)'},
-  50:  {miles:50,  label:'50-Mile',  css:'c50',  solid:'#2b8fc4', grad:'linear-gradient(90deg,#5aa9d6,#6fce62)'},
-  100: {miles:100, label:'100-Mile', css:'c100', solid:'#e5484d', grad:'linear-gradient(90deg,#ff8787,#c92a2a)'}
+  20:  {miles:20,  label:'20-Mile',  css:'c20',  solid:'#3fa34d', deep:'#2f8f3e', grad:'linear-gradient(90deg,#6fce62,#2f9e44)'},
+  50:  {miles:50,  label:'50-Mile',  css:'c50',  solid:'#2b8fc4', deep:'#1c6e9c', grad:'linear-gradient(90deg,#5aa9d6,#6fce62)'},
+  100: {miles:100, label:'100-Mile', css:'c100', solid:'#e5484d', deep:'#c92a2a', grad:'linear-gradient(90deg,#ff8787,#c92a2a)'}
 };
 const ACTIVITIES = {
   run:  {label:'Run',  icon:'🏃'},
@@ -406,7 +435,7 @@ const store = {
     try{ this.data = JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ this.data=null; }
     if(!this.data || !Array.isArray(this.data.profiles)){
       this.data = { profiles:[{id:uid(), name:'Pat', color:COLORS[0], challenges:[50]}],
-        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, display:{bubbles:false, verse:true, coach:true}, onboarded:false, v:6 };
+        entries:[], activeProfileId:null, supabase:{url:'',key:''}, milestones:{}, selected:{}, display:{bubbles:true, verse:true, coach:true}, onboarded:false, v:7 };
     }
     if(!this.data.v){
       this.data.v = 2;
@@ -431,7 +460,7 @@ const store = {
     }
     if(this.data.v < 4){
       // v4: customizable display toggles (bubbles off by default)
-      const dflt={bubbles:false, verse:true, coach:true};
+      const dflt={bubbles:true, verse:true, coach:true};
       this.data.display = Object.assign({}, dflt, this.data.display||{});
       this.data.v = 4;
       this.save();
@@ -452,6 +481,14 @@ const store = {
         }
       }
       this.data.v = 6;
+      this.save();
+    }
+    if(this.data.v < 7){
+      // v7: mile bubbles are on by default again (Pat's call) — existing
+      // users get them back; the Customize toggle still overrides.
+      this.data.display = Object.assign({}, this.data.display||{});
+      this.data.display.bubbles = true;
+      this.data.v = 7;
       this.save();
     }
     if(!this.data.milestones) this.data.milestones = {};
@@ -673,20 +710,7 @@ function shareStory(){
   x.fillStyle='#c9a227'; x.font='600 30px '+F;
   ssSpaced(x,st>0?'EVERY MILE COUNTS · KEEP GOING':'EVERY MILE COUNTS!',W/2,1832,6);
   ssGrain(x,2000); ssVignette(x,0.22);
-
-  c.toBlob(blob=>{
-    if(!blob){ toast('Could not create image'); return; }
-    const file=new File([blob],'october-challenge.png',{type:'image/png'});
-    if(navigator.canShare && navigator.canShare({files:[file]})){
-      navigator.share({files:[file],title:'October Challenge',text:p.name+': '+fmt(t)+'/'+g+' mi'}).catch(()=>{});
-    } else {
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob); a.download='october-challenge.png';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-      toast('Image saved — post it to your story');
-    }
-  },'image/png');
+  shareCanvas(c,'October Challenge','Leaderboard','october-leaderboard.png');
 }
 /* ---------- shared share flow + leaderboard story image ---------- */
 function shareCanvas(c,title,text,filename){
@@ -704,16 +728,13 @@ function shareCanvas(c,title,text,filename){
     }
   },'image/png');
 }
-function lbRows(){
-  // Ranked by each person's overall progress: total miles vs their own
-  // total commitment (sum of enrolled challenges).
-  return store.data.profiles
-    .map(p=>{ const t=totalFor(p.id), c=commitment(p);
-      return {p,t,commit:c,pct:c>0?Math.min(100,t/c*100):0}; })
-    .sort((a,b)=>b.pct-a.pct);
+function lbPeople(){
+  // Not a competition: alphabetical, everyone with their own cards.
+  return store.data.profiles.slice()
+    .sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 }
 function shareLeaderboard(){
-  const rows=lbRows();
+  const people=lbPeople();
   const W=1080,H=1920, c=document.createElement('canvas'); c.width=W; c.height=H;
   const x=c.getContext('2d');
   if(!x || !c.toBlob){ toast('Sharing is not supported in this browser'); return; }
@@ -760,54 +781,63 @@ function shareLeaderboard(){
   x.save(); x.translate(W/2,462); x.rotate(Math.PI/4);
   x.fillStyle='#c9a227'; x.fillRect(-11,-11,22,22); x.restore();
   x.fillStyle='rgba(233,216,166,.85)'; x.font='600 31px '+F;
-  ssSpaced(x,'RANKED BY OVERALL PROGRESS',W/2,522,5);
-  // ranked rows
-  const list=rows.slice(0,10);
-  const top=620, avail=1060;
-  const rowH=Math.min(170,Math.max(112,avail/Math.max(1,list.length)));
-  const medal=['#ffd43b','#cfd8dc','#d08a4e'];
-  list.forEach((r,i)=>{
-    const cy=top+i*rowH+rowH/2;
-    // rank badge
-    x.beginPath(); x.arc(170,cy,44,0,7);
-    x.fillStyle=medal[i]||'#e9d8a6'; x.fill();
-    x.fillStyle='#0e2f25'; x.font='900 52px '+F;
-    x.textAlign='center'; x.fillText(String(i+1),170,cy+18);
-    // name, auto-fit
+  ssSpaced(x,'EVERYONE \u00B7 EVERY CARD',W/2,522,5);
+  // everyone, alphabetical — each person's cards with their own bars and cups
+  const list=people.slice(0,4);
+  const blocks=list.map(p=>({p, cards:enrolled(p).map(g=>({g, a:allocatedFor(p.id,g), cc:CHALLENGES[g]}))}));
+  let y=620;
+  blocks.forEach(b=>{
+    // name with color dot
+    x.beginPath(); x.arc(150,y+26,20,0,7); x.fillStyle=b.p.color||'#2b8fc4'; x.fill();
     let ns=54; x.font='800 '+ns+'px '+F; x.textAlign='left';
-    while(x.measureText(r.p.name).width>520 && ns>26){ ns-=4; x.font='800 '+ns+'px '+F; }
-    x.fillStyle='#f5e9c8'; x.fillText(r.p.name,240,cy-6);
-    // score, right aligned
-    x.textAlign='right';
-    x.fillStyle='#e9d8a6'; x.font='800 44px '+F;
-    x.fillText(Math.round(r.pct)+'%',910,cy-6);
-    x.font='600 30px '+F; x.fillStyle='rgba(233,216,166,.75)';
-    x.fillText(fmt(r.t)+' mi',910,cy+34);
-    x.textAlign='center';
-    // progress bar
-    const bw=670, bx=240, by=cy+52;
-    x.fillStyle='rgba(255,255,255,.12)';
-    rr(x,bx,by,bw,20,10); x.fill();
-    if(r.pct>0){
-      const grd=x.createLinearGradient(bx,0,bx+bw,0);
-      grd.addColorStop(0,'#f9e79a'); grd.addColorStop(1,'#c9992b');
-      x.fillStyle=grd;
-      rr(x,bx,by,Math.max(20,bw*r.pct/100),20,10); x.fill();
-    }
+    while(x.measureText(b.p.name).width>600 && ns>26){ ns-=4; x.font='800 '+ns+'px '+F; }
+    const nw=x.measureText(b.p.name).width;
+    x.fillStyle='#f5e9c8'; x.fillText(b.p.name,185,y+44);
+    if(b.cards.every(c=>c.a>=c.g)){ x.fillText('\uD83C\uDFC6',205+nw,y+44); }
+    y+=88;
+    const cw=Math.min(280,(840-(b.cards.length-1)*24)/b.cards.length), chh=150;
+    b.cards.forEach((c,ci)=>{
+      const done=c.a>=c.g, pc=Math.min(100,c.a/c.g*100);
+      const cx=120+ci*(cw+24), cy=y;
+      const g2=x.createLinearGradient(cx,cy,cx+cw,cy+chh);
+      g2.addColorStop(0,c.cc.solid); g2.addColorStop(1,c.cc.deep);
+      x.fillStyle=g2; rr(x,cx,cy,cw,chh,24); x.fill();
+      if(done){ x.lineWidth=5; x.strokeStyle='#f3d47a'; rr(x,cx+4,cy+4,cw-8,chh-8,20); x.stroke(); }
+      x.fillStyle='#fff'; x.font='800 36px '+F; x.textAlign='left';
+      x.fillText(c.cc.label,cx+26,cy+58);
+      x.fillStyle='rgba(255,255,255,.35)'; rr(x,cx+26,cy+76,cw-52,18,9); x.fill();
+      x.fillStyle='#fff'; rr(x,cx+26,cy+76,Math.max(18,(cw-52)*pc/100),18,9); x.fill();
+      x.font='700 30px '+F;
+      x.fillText(done?'\uD83C\uDFC6 Champion':fmt(c.a)+'/'+c.g+' mi',cx+26,cy+128);
+    });
+    y+=chh+34;
   });
   if(!list.length){
-    x.fillStyle='rgba(245,233,200,.8)'; x.font='600 40px '+F;
-    x.fillText('No trackers yet —',W/2,760);
+    x.fillStyle='rgba(245,233,200,.8)'; x.font='600 40px '+F; x.textAlign='center';
+    x.fillText('No trackers yet \u2014',W/2,760);
     x.fillText('be the first to log miles!',W/2,820);
   }
-  if(rows.length>10){
-    x.fillStyle='rgba(233,216,166,.7)'; x.font='600 30px '+F;
-    x.fillText('+ '+(rows.length-10)+' more',W/2,top+10*rowH+56);
+  if(people.length>4){
+    x.fillStyle='rgba(233,216,166,.7)'; x.font='600 30px '+F; x.textAlign='center';
+    x.fillText('+ '+(people.length-4)+' more',W/2,y+40);
   }
   x.fillStyle='#c9a227'; x.font='600 30px '+F;
   ssSpaced(x,'EVERY MILE COUNTS · KEEP GOING',W/2,1832,6);
   ssGrain(x,2000); ssVignette(x,0.22);
-  shareCanvas(c,'October Challenge','Leaderboard — '+CH.label,'october-leaderboard.png');
+
+  c.toBlob(blob=>{
+    if(!blob){ toast('Could not create image'); return; }
+    const file=new File([blob],'october-challenge.png',{type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:'October Challenge',text:p.name+': '+fmt(t)+'/'+g+' mi'}).catch(()=>{});
+    } else {
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download='october-challenge.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      toast('Image saved — post it to your story');
+    }
+  },'image/png');
 }
 /* ---------- toast & confetti ---------- */
 let toastT=null;
@@ -1020,16 +1050,37 @@ function bubbleTap(i){
   toast(`${fmt(add)} mi ${ACTIVITIES[selectedActivity].label.toLowerCase()} logged`);
   cloudOp(()=>sb.from('challenge_entries').insert({id:e.id, profile_id:e.profileId, entry_date:e.date, activity:e.activity, miles:e.miles, note:null}), 'Add not synced');
 }
+let lbQuery='', lbLetter='All';
+function renderAz(){
+  const letters=['All','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
+  $('#lbAz').innerHTML=letters.map(l=>`<button type="button" data-l="${l}" class="${l===lbLetter?'on':''}">${l}</button>`).join('');
+  $('#lbAz').querySelectorAll('button').forEach(b=>b.onclick=()=>{ lbLetter=b.dataset.l; renderLeaderboard(); });
+}
 function renderLeaderboard(){
   $('#lbTitle').textContent='Leaderboard';
-  const rows=lbRows();
-  const top=rows.length?rows[0].pct:0;
-  $('#leaderboard').innerHTML = rows.map((r,i)=>{
-    const grad=CHALLENGES[enrolled(r.p)[0]].grad;
-    const gap = i===0 ? '' : `<div class="ahead">${Math.round(top-r.pct)}% behind ${esc(rows[0].p.name)}</div>`;
-    return `<div class="lbrow"><div class="top"><span><span class="dot" style="background:${esc(r.p.color||'#2b8fc4')}\"></span> ${esc(r.p.name)}</span>
-      <span class="sc">${fmt(r.t)} mi · ${Math.round(r.pct)}%</span></div>
-      <div class="bar" style="margin:0"><div style="width:${r.pct}%;background:${grad}"></div></div>${gap}</div>`;
+  renderAz();
+  const q=lbQuery.trim().toLowerCase();
+  const all=lbPeople();
+  const people=all.filter(p=>{
+    if(q && !p.name.toLowerCase().includes(q)) return false;
+    if(lbLetter!=='All' && p.name.charAt(0).toUpperCase()!==lbLetter) return false;
+    return true;
+  });
+  $('#lbCount').textContent=all.length+(all.length===1?' person':' people');
+  $('#lbFoot').textContent=people.length+' of '+all.length+(all.length===1?' person':' people');
+  $('#leaderboard').innerHTML = people.map(p=>{
+    const en=enrolled(p);
+    const allDone=en.every(g=>allocatedFor(p.id,g)>=g);
+    const cards=[20,50,100].map(g=>{
+      if(!en.includes(g)) return '<div class="lbctile empty" aria-hidden="true"></div>';
+      const a=allocatedFor(p.id,g), cc=CHALLENGES[g], pc=Math.min(100,a/g*100);
+      const done=a>=g;
+      return `<div class="lbctile${done?' done':''}" style="--c1:${cc.solid};--c2:${cc.deep}">`
+        +`<div class="lbcrow"><span>${g} mi</span><b>${done?'🏆 Done':fmt(a)+'/'+g}</b></div>`
+        +`<div class="lbcbar"><div style="width:${pc}%"></div></div></div>`;
+    }).join('');
+    const cardsHtml = `<div class="lbcards">${cards}</div>`;
+    return `<div class="lbperson"><div class="lbname"><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span><span class="nm">${esc(p.name)}${allDone?' 🏆':''}</span></div>${cardsHtml}</div>`;
   }).join('') || `<div class="empty">No trackers yet.</div>`;
 }
 function openLb(){ $('#lbModal').classList.add('open'); document.body.style.overflow='hidden'; }
@@ -1285,6 +1336,7 @@ function init(){
   };
   $('#installLater').onclick=()=>{ markInstallSeen(); closeInstall(); };
   $('#installRow').onclick=openInstall;
+  $('#lbSearch').addEventListener('input',e=>{ lbQuery=e.target.value; renderLeaderboard(); });
   $('#installModal').onclick=e=>{ if(e.target.id==='installModal') closeInstall(); };
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });

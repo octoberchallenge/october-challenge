@@ -526,7 +526,8 @@ const activeProfile = () => store.data.profiles.find(p=>p.id===store.data.active
 // Board permissions: you can only change your own tracker — except Pat,
 // who administers the board.
 function ownProfile(){ return store.data.profiles.find(p=>p.id===store.data.selfProfileId) || activeProfile(); }
-function isBoardAdmin(){ const o=ownProfile(); return !!(o && o.name && o.name.trim().toLowerCase()==='pat'); }
+function isBoardAdmin(){ const o=ownProfile(); if(!o||!o.name) return false;
+  const n=o.name.trim().toLowerCase(); return n==='pat'||n==='patricia'||n.startsWith('patricia '); }
 function canEditProfile(pid){ return isBoardAdmin() || (store.data.selfProfileId && pid===store.data.selfProfileId); }
 // One tracker per device: the active tracker is always your own, so miles
 // can only ever be logged for yourself. Everyone else is leaderboard-only.

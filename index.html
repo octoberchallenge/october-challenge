@@ -18,6 +18,7 @@
     --muted:#5b7183; --line:#e3edf3; --danger:#e5484d;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  
   body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:var(--bg); color:var(--navy); padding-bottom:96px;}
   header.hero{background:linear-gradient(135deg,#7fb9d9 0%,#5aa9d6 35%,#6fce62 100%);
@@ -79,7 +80,10 @@
   .lbfoot{color:var(--muted);font-size:13px;margin:8px 0 2px;}
   .lbperson{display:flex;gap:10px;align-items:flex-start;padding:12px 2px;border-bottom:1px solid var(--line);}
   .lbperson:last-child{border-bottom:none;}
-  .lbname{flex:0 0 84px;display:flex;align-items:center;gap:6px;font-weight:800;font-size:15px;padding-top:9px;overflow:hidden;}
+  .lbperson.me{background:#eaf5fc;border:1px solid var(--blue);border-radius:14px;padding:12px 10px;}
+  .lbperson.me:last-child{border-bottom:1px solid var(--blue);}
+  .youbadge{font-size:11px;font-weight:800;color:#fff;background:var(--blue);border-radius:99px;padding:2px 8px;margin-left:6px;vertical-align:2px;}
+    .lbname{flex:0 0 84px;display:flex;align-items:center;gap:6px;font-weight:800;font-size:15px;padding-top:9px;overflow:hidden;}
   .lbname span.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .lbcards{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;min-width:0;align-items:start;}
   .lbctile.empty{visibility:hidden;}
@@ -1261,7 +1265,8 @@ function renderLeaderboard(){
         +`<div class="lbcbar"><div style="width:${pc}%"></div></div></div>`;
     }).join('');
     const cardsHtml = `<div class="lbcards">${cards}</div>`;
-    return `<div class="lbperson"><div class="lbname"><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span><span class="nm">${esc(p.name)}${allDone?' 🏆':''}</span></div>${cardsHtml}</div>`;
+    const me = p.id===store.data.selfProfileId;
+    return `<div class="lbperson${me?' me':''}"><div class="lbname"><span class="dot" style="background:${esc(p.color||'#2b8fc4')}"></span><span class="nm">${esc(p.name)}${me?'<span class="youbadge">You</span>':''}${allDone?' 🏆':''}</span></div>${cardsHtml}</div>`;
   }).join('') || `<div class="empty">No trackers yet.</div>`;
 }
 function openLb(){ $('#lbModal').classList.add('open'); document.body.style.overflow='hidden'; }
